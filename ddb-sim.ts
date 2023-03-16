@@ -9,13 +9,13 @@ function initCircularBuffer(capacity, default_value) {
     return buf
 }
 
-type TableCapacityConfig {
+export type TableCapacityConfig = {
     min: number
     max: number
     target: number
 }
 
-class TableCapacity {
+export class TableCapacity {
     config: TableCapacityConfig;
     capacity: number;
     burst_buckets: BurstBuckets;
@@ -36,7 +36,7 @@ class TableCapacity {
         if (amount_remaining < 0) {
             // CONSUME FROM BURST IF WE CAN
             const amount_over = amount_remaining * -1
-            const burst_consumed = min(amount_over, this.burst_buckets.sum())
+            const burst_consumed = Math.min(amount_over, this.burst_buckets.sum())
             this.burst_buckets.consume(burst_consumed)
             const amount_remaining_after_burst_consumed = amount_over - burst_consumed
         
@@ -59,15 +59,19 @@ class TableCapacity {
         // HANDLE SCALING UP OR DOWN
         // NOTE: assumes scaling is instantly effective (no delay)
         const last_two_mins_of_util = this.past_utilizations.toArray().slice(-2)
-        if (last_two_mins_of_util[0] > this.config.target && last_two_mins_of_util[1] > this.config.target) {
+        if (last_two_mins_of_util[0] > 0 && last_two_mins_of_util[1] > 0 && last_two_mins_of_util[0] > this.config.target && last_two_mins_of_util[1] > this.config.target) {
             // scale up
-            this.capacity += amount_requested * this.config.target
+            this.capacity = amount_requested / this.config.target // dividing by decimal between 0 and 1 will cause us to make our new utilization equal to the target
+            // clamp to max value
+            this.capacity = Math.min(this.config.max, this.capacity)
         }
         
         const scale_down_threshold = this.config.target - this.config.target * 0.20
         if (this.past_utilizations.toArray().every(u => u < scale_down_threshold)) {
             // scale down
             this.capacity -= amount_requested * this.config.target
+            // clamp to min value
+            this.capacity = Math.max(this.config.min, this.capacity)
         }
     }
 }

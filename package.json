@@ -4,7 +4,7 @@
   "description": "",
   "main": "ddb-sim.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -15,5 +15,12 @@
     "aws-sdk": "^2.1336.0",
     "circular-buffer": "^1.0.3",
     "ring-buffer-ts": "^1.2.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.5.0",
+    "@types/jest": "^29.4.4",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.0.5",
+    "ts-node": "^10.9.1"
   }
 }
