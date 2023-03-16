@@ -128,10 +128,10 @@ export async function fetchTableMetrics(params: params): Promise<{ timestamp: Da
         
         for (let i = 0; i < consumedReadData.Timestamps!.length; i++) {
             const timestamp = new Date(consumedReadData.Timestamps![i]);
-            const consumedRead = consumedReadData.Values![i];
-            const consumedWrite = consumedWriteData.Values![i];
-            const throttledReads = throttledReadsData.Values![i];
-            const throttledWrites = throttledWritesData.Values![i];
+            const consumedRead = consumedReadData.Values![i] || 0;
+            const consumedWrite = consumedWriteData.Values![i] || 0;
+            const throttledReads = throttledReadsData.Values![i] || 0;
+            const throttledWrites = throttledWritesData.Values![i] || 0;
             
             data.push({ timestamp, consumedRead, consumedWrite, throttledReads, throttledWrites });
         }
