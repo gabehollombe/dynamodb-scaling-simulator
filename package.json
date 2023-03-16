@@ -1,0 +1,19 @@
+{
+  "name": "ddb-scaling-sim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ddb-sim.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.292.0",
+    "@aws-sdk/credential-providers": "^3.292.0",
+    "@aws-sdk/types": "^3.292.0",
+    "aws-sdk": "^2.1336.0",
+    "circular-buffer": "^1.0.3",
+    "ring-buffer-ts": "^1.2.0"
+  }
+}
