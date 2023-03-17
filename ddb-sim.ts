@@ -1,7 +1,7 @@
 import { RingBuffer } from 'ring-buffer-ts';
 import { BurstBuckets } from './burst-bucket'
 
-function initCircularBuffer(capacity, default_value) {
+function initCircularBuffer(capacity: number, default_value: number) {
     let buf = new RingBuffer<number>(capacity)
     for (let i=0; i<capacity; i++) {
         buf.add(default_value)
@@ -33,16 +33,21 @@ export class TableCapacity {
 
     process(timestamp: number, amount_requested: number) {
         const amount_remaining = this.capacity - amount_requested
+        let consumedCapacity = 0
+        let throttled = 0
         if (amount_remaining < 0) {
+            consumedCapacity += this.capacity
+
             // CONSUME FROM BURST IF WE CAN
             const amount_over = amount_remaining * -1
             const burst_consumed = Math.min(amount_over, this.burst_buckets.sum())
             this.burst_buckets.consume(burst_consumed)
+            consumedCapacity += burst_consumed
+
             const amount_remaining_after_burst_consumed = amount_over - burst_consumed
-        
             if (amount_remaining_after_burst_consumed > 0) {
-                // THROTTLE REQUEST
-                this.throttled_timestamps.push(timestamp)
+                // THROTTLE THE REST AFTER NO BURST LEFT
+                throttled = amount_remaining_after_burst_consumed
             }
         }
         else {
@@ -73,6 +78,8 @@ export class TableCapacity {
             // clamp to min value
             this.capacity = Math.max(this.config.min, this.capacity)
         }
+
+        return { consumedCapacity, throttled  }
     }
 }
 

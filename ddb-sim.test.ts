@@ -65,11 +65,26 @@ describe('TableCapacity', () => {
             const timestamp = Date.now();
             const amount_requested = 200;
             
-            tableCapacity.process(timestamp, amount_requested);
+            const { consumedCapacity, throttled } = tableCapacity.process(timestamp, amount_requested);
             
             expect(tableCapacity.burst_buckets.sum()).toBe(0);
-            expect(tableCapacity.throttled_timestamps).toContain(timestamp);
+            expect(throttled).toBe(100)
         });
+        it('returns the amount of capacity consumed and the amount of throttled requests', () => {
+            const config = { min: 100, max: 1000, target: 0.5 };
+            const tableCapacity = new TableCapacity(config);
+            tableCapacity.capacity = 100;
+
+            const timestamp = Date.now();
+            const amount_requested = 150;
+            
+            const { consumedCapacity, throttled } = tableCapacity.process(timestamp, amount_requested);
+
+            // request 150, capacity 100, so...
+            expect(consumedCapacity).toEqual(100); 
+            expect(throttled).toEqual(50); 
+        });
+
         
         it('should only scale up after two consecutive ticks over threshold', () => {
             const config = { min: 100, max: 1000, target: 0.5 };

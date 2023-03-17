@@ -1,5 +1,5 @@
 export class BurstBuckets {
-    private buckets: number[];
+    public buckets: number[];
     private currentIndex: number;
   
     constructor(private capacity: number) {
