@@ -66,7 +66,7 @@ export async function fetchTableMetrics(params: params): Promise<{ timestamp: Da
                         Value: params.tableName
                     }
                 ],
-                MetricName: "ThrottledRequests",
+                MetricName: "ReadThrottleEvents",
                 Namespace: namespace
             },
             Period: period,
@@ -85,7 +85,7 @@ export async function fetchTableMetrics(params: params): Promise<{ timestamp: Da
                         Value: params.tableName
                     }
                 ],
-                MetricName: "ThrottledRequests",
+                MetricName: "WriteThrottleEvents",
                 Namespace: namespace
             },
             Period: period,
