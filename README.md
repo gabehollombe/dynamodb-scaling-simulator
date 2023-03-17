@@ -11,8 +11,10 @@ This repo contains a tool to help you simulate how a provisioned-capacity Dynamo
 ## How does it work?
 The repo contains a script (see `example_main.ts`) which sets up some config (AWS region, DynamoDB table name, start and end date ranges, and an auto-scaling configuration). 
 
+You need to edit these config values in the script, then run it.
+
 When you run the script, it will...
-1. Pulls down the historic CloudWatch metrics data for the table (`ConsumedReadCapacityUnits`, `ConsumedWriteCapacityUnits`, `ReadThrottleEvents`,  `WriteThrottleEvents`)
+1. Pulls down the historic CloudWatch metrics data for the table, for the configured time range (`ConsumedReadCapacityUnits`, `ConsumedWriteCapacityUnits`, `ReadThrottleEvents`,  `WriteThrottleEvents`)
 2. Instantiates a new simulated table with a given auto-scaling config (min capacity, max capacity, target utilization).
 3. Calculates each minute's total read/write demand for the table (summing Consumed + Throttled metrics for reads and writes, respectively)
 4. Feeds each minute's total demand into the simulated table
