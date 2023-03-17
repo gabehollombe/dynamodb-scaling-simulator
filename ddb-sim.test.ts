@@ -70,7 +70,7 @@ describe('TableCapacity', () => {
             expect(tableCapacity.burst_buckets.sum()).toBe(0);
             expect(throttled).toBe(100)
         });
-        it('returns the amount of capacity consumed and the amount of throttled requests', () => {
+        it('returns the amount of capacity consumed and the amount of throttled requests and the burst available', () => {
             const config = { min: 100, max: 1000, target: 0.5 };
             const tableCapacity = new TableCapacity(config);
             tableCapacity.capacity = 100;
@@ -81,12 +81,13 @@ describe('TableCapacity', () => {
             // request 150, capacity 100, so...
             expect(results.consumedCapacity).toEqual(100); 
             expect(results.throttled).toEqual(50); 
+            expect(results.burstAvailable).toEqual(0); 
 
             results = tableCapacity.process(timestamp, 20);
             expect(results.consumedCapacity).toEqual(20); 
             expect(results.throttled).toEqual(0); 
+            expect(results.burstAvailable).toEqual(80); 
         });
-
         
         it('should only scale up after two consecutive ticks over threshold', () => {
             const config = { min: 100, max: 1000, target: 0.5 };
@@ -149,7 +150,7 @@ describe('TableCapacity', () => {
             
             // 15th tick of consecutively 20% than target threshold will adjust capacity lower
             tableCapacity.process(timestamp, amount_requested);
-            expect(tableCapacity.capacity).toEqual(160.5);
+            expect(tableCapacity.capacity).toEqual(161); // We round capacity when we scale
         });
     });
 });

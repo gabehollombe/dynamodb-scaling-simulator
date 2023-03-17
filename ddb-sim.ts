@@ -80,7 +80,10 @@ export class TableCapacity {
             this.capacity = Math.max(this.config.min, this.capacity)
         }
 
-        return { consumedCapacity, throttled  }
+        // BE SURE TO ROUND CAPACITY SO WE DON'T GET SUPER NASTY FLOATING POINT MATH INEQUALITIES WHEN CONSUMING BURST
+        this.capacity = Math.round(this.capacity)
+
+        return { consumedCapacity, throttled, burstAvailable: this.burst_buckets.sum()  }
     }
 }
 
