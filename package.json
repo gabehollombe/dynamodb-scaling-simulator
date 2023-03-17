@@ -14,6 +14,7 @@
     "@aws-sdk/types": "^3.292.0",
     "aws-sdk": "^2.1336.0",
     "circular-buffer": "^1.0.3",
+    "nodeplotlib": "^1.1.2",
     "ring-buffer-ts": "^1.2.0"
   },
   "devDependencies": {

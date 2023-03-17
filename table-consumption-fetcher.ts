@@ -111,6 +111,7 @@ export async function fetchTableMetrics(params: params): Promise<{ timestamp: Da
             StartTime: params.startTime,
             EndTime: params.endTime,
             NextToken: nextToken,
+            ScanBy: "TimestampAscending"
         }))
         nextToken = response.NextToken as any
 

@@ -74,15 +74,17 @@ describe('TableCapacity', () => {
             const config = { min: 100, max: 1000, target: 0.5 };
             const tableCapacity = new TableCapacity(config);
             tableCapacity.capacity = 100;
-
             const timestamp = Date.now();
-            const amount_requested = 150;
-            
-            const { consumedCapacity, throttled } = tableCapacity.process(timestamp, amount_requested);
+            let results
 
+            results = tableCapacity.process(timestamp, 150);
             // request 150, capacity 100, so...
-            expect(consumedCapacity).toEqual(100); 
-            expect(throttled).toEqual(50); 
+            expect(results.consumedCapacity).toEqual(100); 
+            expect(results.throttled).toEqual(50); 
+
+            results = tableCapacity.process(timestamp, 20);
+            expect(results.consumedCapacity).toEqual(20); 
+            expect(results.throttled).toEqual(0); 
         });
 
         

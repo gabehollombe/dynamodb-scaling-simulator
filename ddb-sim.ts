@@ -53,6 +53,7 @@ export class TableCapacity {
         else {
             // ADD UNUSED CAPACITY TO BURST
             this.burst_buckets.add(amount_remaining)
+            consumedCapacity += amount_requested
         }
 
 
