@@ -29,8 +29,33 @@ When you run the script, it will...
   - I _think_ that DDB's scaling algorithm will scale up more aggressively if it also sees recent throttles?
 
 ## TODOs
-[ ] Cache CloudWatch data locally for subsequent runs on the same table/dateranges
-[ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
+- [ ] Cache CloudWatch data locally for subsequent runs on the same table/dateranges
+
+- [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
+
+- [ ] Work on importing from CSV, generating URL to download CSV from web console with these metrics (replace TABLE_NAME and REGION). Also be sure to check avg vs sum in stats below and do any math we need to...:
+
+    ```
+    {
+        "metrics": [
+            [ "AWS/DynamoDB", "ProvisionedReadCapacityUnits", "TableName", "TABLE_NAME", { "stat": "Average" } ],
+            [ "AWS/DynamoDB", "ProvisionedReadCapacityUnits", "TableName", "TABLE_NAME", { "stat": "Average" } ],
+            [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "TABLE_NAME", { "stat": "Sum" } ],
+            [ "AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "TABLE_NAME", { "stat": "Sum" } ],
+            [ "AWS/DynamoDB", "ReadThrottleEvents", "TableName", "TABLE_NAME", { "stat": "Sum" } ],
+            [ "AWS/DynamoDB", "WriteThrottleEvents", "TableName", "TABLE_NAME", { "stat": "Sum" } ]
+        ],
+        "title": "Provisioned, Consumed, Throttled",
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "REGION",
+        "period": 60,
+        "yAxis": {
+            "left": {
+                "showUnits": false
+            }
+     }
+    ```
 
 ## Ideas
 - Auto "solve" for different configs that result in zero throttles and optimize for price.
