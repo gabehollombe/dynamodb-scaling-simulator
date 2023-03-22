@@ -186,12 +186,9 @@ describe('TableCapacity', () => {
 
             // first scale down should have happened
             expect(tableCapacity.capacity).toEqual(224);
+            const firstDownscaleHappenedAt = dayjs(datetime).clone()
 
-            // figure out what hour of the day we are in and assert that only 3 more downscales will happen in this hour
-            const firstScaledownEventHour = dayjs(datetime).hour()
-            const firstScaledownEventMinute = dayjs(datetime).minute()
-
-            // trigger 3 more downscales
+            // trigger 3 more downscales in consecutive minutes
             for (let minute=1; minute<=3; minute++) {
                 let scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
                 let capacityBefore = tableCapacity.capacity
@@ -201,21 +198,10 @@ describe('TableCapacity', () => {
                 expect(capacityAfter).toBeLessThan(capacityBefore)
             }
             
-            // for our next minute, we should still be in the same hour so we can test no downscale
-            datetime = datetime.add(1, 'minute')
-            expect(dayjs(datetime).hour()).toEqual(firstScaledownEventHour)
-
-            // this scaledown req should not trigger a scale down because we already did 4 in first hour
+            // no more downscales should happen until 60 minutes after the first downscale event of the day occured
             scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
-            let capacityBefore = tableCapacity.capacity
-            datetime = datetime.add(1, 'minute')
-            tableCapacity.process(datetime.valueOf(), scaledownReq);
-            let capacityAfter = tableCapacity.capacity
-            expect(capacityAfter).toEqual(capacityBefore)
-
-            // advance to the next hour...
-            while (datetime.hour() == firstScaledownEventHour && datetime.minute() < 59) {
-                scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            // TODO why 62 here not 60?!
+            while (datetime < dayjs(firstDownscaleHappenedAt).add(62, 'minutes')) {
                 let capacityBefore = tableCapacity.capacity
                 datetime = datetime.add(1, 'minute')
                 tableCapacity.process(datetime.valueOf(), scaledownReq);
@@ -223,22 +209,29 @@ describe('TableCapacity', () => {
                 expect(capacityAfter).toEqual(capacityBefore)
             }
 
-            // first request in next hour should downscale only once
-            scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
-            capacityBefore = tableCapacity.capacity
+            // we should now be in the next hour, so another downscale can happen
+            let capacityBefore = tableCapacity.capacity
             datetime = datetime.add(1, 'minute')
             tableCapacity.process(datetime.valueOf(), scaledownReq);
-            capacityAfter = tableCapacity.capacity
+            let capacityAfter = tableCapacity.capacity
             expect(capacityAfter).toBeLessThan(capacityBefore)
 
-            // next request in same hour should not downscale
-            scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            // but only 1. so next one should fail
             capacityBefore = tableCapacity.capacity
             datetime = datetime.add(1, 'minute')
             tableCapacity.process(datetime.valueOf(), scaledownReq);
             capacityAfter = tableCapacity.capacity
             expect(capacityAfter).toEqual(capacityBefore)
 
+            // advance to the next hour, no scaling happening in the hour
+            while (datetime < dayjs(firstDownscaleHappenedAt).add(120, 'minutes')) {
+                scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+                let capacityBefore = tableCapacity.capacity
+                datetime = datetime.add(1, 'minute')
+                tableCapacity.process(datetime.valueOf(), scaledownReq);
+                let capacityAfter = tableCapacity.capacity
+                expect(capacityAfter).toEqual(capacityBefore)
+            }
         });
     });
 });

@@ -23,11 +23,13 @@ export class TableCapacity {
     burst_buckets: BurstBuckets
     past_utilizations: RingBuffer<number>
     throttled_timestamps: number[]
-    first_scaledown_hour: number
-    scaledowns_per_hour: number[]
     last_process_at: number
     capacity_change_at: number
     capacity_change_to: number
+    first_scaledown_happened_at: number
+    scaledowns_remaining_in_first_batch: number;
+    first_scaledown_batch_ends_at: number;
+    most_recent_scaledown_happened_at: number;
 
     constructor(config:TableCapacityConfig) {
         this.config = config
@@ -35,39 +37,36 @@ export class TableCapacity {
         this.burst_buckets = new BurstBuckets(5)
         this.past_utilizations = initCircularBuffer(15, 0)
         this.throttled_timestamps = []
-        this.first_scaledown_hour = -1
         this.last_process_at = -1
-        this.first_scaledown_hour = -1
-        this.scaledowns_per_hour = [
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0
-        ] // 24 hours
         this.capacity_change_at = -1
         this.capacity_change_to = -1
+        this.first_scaledown_happened_at = -1
+        this.scaledowns_remaining_in_first_batch = 4 // TODO make this configurable
+        this.first_scaledown_batch_ends_at = -1
+        this.most_recent_scaledown_happened_at = -1
     }
 
     resetScaledownTracking() {
-        this.first_scaledown_hour = -1
-        this.scaledowns_per_hour = [
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0, 
-            0, 0, 0, 0, 0, 0
-        ] // 24 hours
+        this.first_scaledown_happened_at = -1
+        this.first_scaledown_batch_ends_at = -1
+        this.most_recent_scaledown_happened_at = -1
+        this.scaledowns_remaining_in_first_batch = 4
     }
 
     canScaleDown(timestamp: number): boolean {
-        if (this.first_scaledown_hour == -1) {
+        // If we have not scaled down this day yet, we can scaledown
+        if (this.first_scaledown_happened_at == -1) {
             return true
         }
-        const hour = dayjs(timestamp).hour()
 
-        if (hour == this.first_scaledown_hour && this.scaledowns_per_hour[hour] <= 3) {
+        // If timestamp is inside first batch window and we have any scaledowns remaining in the first batch (defaults to 60 minutes after first scaledown of the day), we can scaledown
+        if (timestamp < this.first_scaledown_batch_ends_at && this.scaledowns_remaining_in_first_batch > 0) {
             return true
         }
-        else if (this.scaledowns_per_hour[hour] == 0) {
+
+        // Othwerwise, we can only scaledown if it has been long enough (default 60 minutes) since last scaledown
+        // TODO make the 60 minutes configurable
+        if (timestamp >= dayjs(this.most_recent_scaledown_happened_at).add(60, 'minutes').valueOf()) {
             return true
         }
 
@@ -123,10 +122,6 @@ export class TableCapacity {
             if (this.past_utilizations.toArray().every(u => u < scale_down_threshold) && this.canScaleDown(timestamp)) {
                 // scaling down...
                 const hour = dayjs(timestamp).hour()
-                if (this.first_scaledown_hour == -1) {
-                    this.first_scaledown_hour = hour
-                }
-                this.scaledowns_per_hour[hour] = this.scaledowns_per_hour[hour] + 1
                 this.capacity_change_to = amount_requested / this.config.target
                 // clamp to min value since this is a scale down
                 this.capacity_change_to = Math.max(this.config.min, this.capacity_change_to)
@@ -139,6 +134,18 @@ export class TableCapacity {
 
         // handle 'realizing' the scaling event if delay is over
         if (this.capacity_change_at != -1 && timestamp >= this.capacity_change_at) {
+            // if this is a scale down, log it
+            if (this.capacity_change_to < this.capacity) {
+                if (this.first_scaledown_happened_at == -1) {
+                    this.first_scaledown_happened_at = timestamp
+                    this.first_scaledown_batch_ends_at = dayjs(timestamp).add(60, 'minutes').valueOf()
+                }
+                if (timestamp < this.first_scaledown_batch_ends_at && this.scaledowns_remaining_in_first_batch > 0) {
+                    this.scaledowns_remaining_in_first_batch -= 1
+                }
+                this.most_recent_scaledown_happened_at = timestamp
+            }
+
             // we round capacity so we don't get super nasty floating point math inequalities when consuming burst
             this.capacity = Math.round(this.capacity_change_to) 
             this.capacity_change_at = -1

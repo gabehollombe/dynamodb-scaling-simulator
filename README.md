@@ -29,6 +29,7 @@ When you run the script, it will...
 - Currently it only simulates the default scaledown behavior: 4 in 1st hour 1 each additional hour)
 
 ## TODOs
+- [ ] Try calculating scaledown targets by looking at the last 60 minute average rather than the most recent requested amount
 - [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
 - [ ] Cache CloudWatch data locally for subsequent runs on the same table/dateranges
 
