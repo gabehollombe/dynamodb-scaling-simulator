@@ -26,9 +26,9 @@ When you run the script, it will...
 - Does not think about hot partitions as a reason to throttle. Only considers total capacity avaialble vs requested.
 - Correctly simulates scaling up (when last 2 minutes of usage are higher than provisioned capacity) and down (when last 15 mintues are all at a utilization that is at least 20% lower than the target utilization), according to [this knowledge base article](https://aws.amazon.com/premiumsupport/knowledge-center/dynamodb-auto-scaling/). However, it scales _instantly_ up/down to the new capacity based on the target utilization. This is probably not how Dynamo actually behaves with regards to making new capacity decisions and latency in making those new capacities actually available for requests.
   - I _think_ that DDB's scaling algorithm will scale up more aggressively if it also sees recent throttles?
+- Currently it only simulates the default scaledown behavior: 4 in 1st hour 1 each additional hour)
 
 ## TODOs
-- [ ] Correctly simulate max scaledowns per 24 hour period (this is apparently configurable with a support request, but we will start with default bahvior of 4 in 1st hour 1 each additional hour)
 - [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
 - [ ] Cache CloudWatch data locally for subsequent runs on the same table/dateranges
 

@@ -1,5 +1,7 @@
 import { RingBuffer } from 'ring-buffer-ts';
 import { BurstBuckets } from './burst-bucket'
+import * as dayjs from 'dayjs'
+import { time } from 'console';
 
 function initCircularBuffer(capacity: number, default_value: number) {
     let buf = new RingBuffer<number>(capacity)
@@ -16,11 +18,14 @@ export type TableCapacityConfig = {
 }
 
 export class TableCapacity {
-    config: TableCapacityConfig;
-    capacity: number;
-    burst_buckets: BurstBuckets;
-    past_utilizations: RingBuffer<number>;
-    throttled_timestamps: number[];
+    config: TableCapacityConfig
+    capacity: number
+    burst_buckets: BurstBuckets
+    past_utilizations: RingBuffer<number>
+    throttled_timestamps: number[]
+    first_scaledown_hour: number
+    scaledowns_per_hour: number[]
+    last_process_at: number
 
     constructor(config:TableCapacityConfig) {
         this.config = config
@@ -28,10 +33,42 @@ export class TableCapacity {
         this.burst_buckets = new BurstBuckets(5)
         this.past_utilizations = initCircularBuffer(15, 0)
         this.throttled_timestamps = []
+        this.first_scaledown_hour = -1
+        this.last_process_at = -1
+        this.resetScaledownTracking()
     }
 
+    resetScaledownTracking() {
+        this.first_scaledown_hour = -1
+        this.scaledowns_per_hour = [
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0
+        ] // 24 hours
+    }
+
+    canScaleDown(timestamp: number): boolean {
+        if (this.first_scaledown_hour == -1) {
+            return true
+        }
+        const hour = dayjs(timestamp).hour()
+
+        if (hour == this.first_scaledown_hour && this.scaledowns_per_hour[hour] <= 3) {
+            return true
+        }
+        else if (this.scaledowns_per_hour[hour] == 0) {
+            return true
+        }
+
+        return false
+    }
 
     process(timestamp: number, amount_requested: number) {
+        if (dayjs(timestamp).date() !== dayjs(this.last_process_at).date()) {
+            this.resetScaledownTracking()
+        }
+
         const amount_remaining = this.capacity - amount_requested
         let consumedCapacity = 0
         let throttled = 0
@@ -66,23 +103,29 @@ export class TableCapacity {
         // NOTE: assumes scaling is instantly effective (no delay)
         const last_two_mins_of_util = this.past_utilizations.toArray().slice(-2)
         if (last_two_mins_of_util[0] > 0 && last_two_mins_of_util[1] > 0 && last_two_mins_of_util[0] > this.config.target && last_two_mins_of_util[1] > this.config.target) {
-            // scale up
-            this.capacity = amount_requested / this.config.target // dividing by decimal between 0 and 1 will cause us to make our new utilization equal to the target
-            // clamp to max value
+            // scaling up...
+            this.capacity = amount_requested / this.config.target
+            // clamp to max value since this is a scale up
             this.capacity = Math.min(this.config.max, this.capacity)
         }
         
-        const scale_down_threshold = this.config.target - this.config.target * 0.20
-        if (this.past_utilizations.toArray().every(u => u < scale_down_threshold)) {
-            // scale down
-            this.capacity -= amount_requested * this.config.target
-            // clamp to min value
+        const scale_down_threshold = this.config.target - .20
+        if (this.past_utilizations.toArray().every(u => u < scale_down_threshold) && this.canScaleDown(timestamp)) {
+            // scaling down...
+            const hour = dayjs(timestamp).hour()
+            if (this.first_scaledown_hour == -1) {
+                this.first_scaledown_hour = hour
+            }
+            this.scaledowns_per_hour[hour] = this.scaledowns_per_hour[hour] + 1
+            this.capacity = amount_requested / this.config.target
+            // clamp to min value since this is a scale down
             this.capacity = Math.max(this.config.min, this.capacity)
         }
 
         // BE SURE TO ROUND CAPACITY SO WE DON'T GET SUPER NASTY FLOATING POINT MATH INEQUALITIES WHEN CONSUMING BURST
         this.capacity = Math.round(this.capacity)
 
+        this.last_process_at = timestamp
         return { consumedCapacity, throttled, burstAvailable: this.burst_buckets.sum()  }
     }
 }

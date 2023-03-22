@@ -1,8 +1,8 @@
 import {describe, expect, test} from '@jest/globals';
-import { table } from 'console';
 import { RingBuffer } from 'ring-buffer-ts';
 import { BurstBuckets } from './burst-bucket';
 import { TableCapacity, TableCapacityConfig } from './ddb-sim';
+import * as dayjs from 'dayjs'
 
 describe('TableCapacity', () => {
     it('should initialize with correct properties', () => {
@@ -112,13 +112,13 @@ describe('TableCapacity', () => {
             tableCapacity.capacity = initial_capacity // overriding capacity to 200 before we start lowball requests
             
             const timestamp = Date.now();
-            const amount_requested = 79
+            const amount_requested = 50
             
-            // TODO: figure out why we need to do only one process here at init cap first...
+            // start us off with something that wouldn't trigger a scale down because at the beginning all 15 past utilization slots are 0...
             tableCapacity.process(timestamp, 200);
             expect(tableCapacity.capacity).toEqual(initial_capacity);
             
-            // 14 requests at 20% lower than value at target util, no scale down yet...
+            // 14 more requests at 20% lower than value at target util, no scale down yet...
             tableCapacity.process(timestamp, amount_requested);
             expect(tableCapacity.capacity).toEqual(initial_capacity);
             tableCapacity.process(timestamp, amount_requested);
@@ -150,7 +150,95 @@ describe('TableCapacity', () => {
             
             // 15th tick of consecutively 20% than target threshold will adjust capacity lower
             tableCapacity.process(timestamp, amount_requested);
-            expect(tableCapacity.capacity).toEqual(161); // We round capacity when we scale
+            expect(tableCapacity.capacity).toEqual(100); // We round capacity when we scale
+        });
+
+        it('does not scale down more than 27 times in a 24 hour period beginning at 00:00:00.000Z (4 in first hour that downscaling begins, one per additional hour)', () => {
+            const config = { min: 10, max: 1000, target: 0.5 };
+            const tableCapacity = new TableCapacity(config);
+            const initial_capacity = 400
+            tableCapacity.capacity = initial_capacity
+            let datetime = dayjs('2000-01-02T00:00:00.000Z')
+
+            expect(tableCapacity.capacity).toEqual(400);
+            tableCapacity.process(datetime.valueOf(), 200); // right on target
+            datetime = datetime.add(1, 'minute')
+
+            tableCapacity.capacity = initial_capacity
+            expect(tableCapacity.capacity).toEqual(400);
+            tableCapacity.process(datetime.valueOf(), 200);
+            datetime = datetime.add(1, 'minute')
+
+            // let's wait a few hours, then try to trigger first downscale...
+            for (let minute=1; minute<=4*60; minute++) {
+                expect(tableCapacity.capacity).toEqual(400);
+                datetime = datetime.add(1, 'minute')
+                tableCapacity.process(datetime.valueOf(), 200);
+            }
+
+            // trigger first downscale
+            let scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            for (let minute=1; minute<=15; minute++) {
+                expect(tableCapacity.capacity).toEqual(400);
+                datetime = datetime.add(1, 'minute')
+                tableCapacity.process(datetime.valueOf(), scaledownReq); // more than .5 lower than 200
+            }
+
+            // first scale down should have happened
+            expect(tableCapacity.capacity).toEqual(224);
+
+            // figure out what hour of the day we are in and assert that only 3 more downscales will happen in this hour
+            const firstScaledownEventHour = dayjs(datetime).hour()
+            const firstScaledownEventMinute = dayjs(datetime).minute()
+
+            // trigger 3 more downscales
+            for (let minute=1; minute<=3; minute++) {
+                let scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+                let capacityBefore = tableCapacity.capacity
+                datetime = datetime.add(1, 'minute')
+                tableCapacity.process(datetime.valueOf(), scaledownReq);
+                let capacityAfter = tableCapacity.capacity
+                expect(capacityAfter).toBeLessThan(capacityBefore)
+            }
+            
+            // for our next minute, we should still be in the same hour so we can test no downscale
+            datetime = datetime.add(1, 'minute')
+            expect(dayjs(datetime).hour()).toEqual(firstScaledownEventHour)
+
+            // this scaledown req should not trigger a scale down because we already did 4 in first hour
+            scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            let capacityBefore = tableCapacity.capacity
+            datetime = datetime.add(1, 'minute')
+            tableCapacity.process(datetime.valueOf(), scaledownReq);
+            let capacityAfter = tableCapacity.capacity
+            expect(capacityAfter).toEqual(capacityBefore)
+
+            // advance to the next hour...
+            while (datetime.hour() == firstScaledownEventHour && datetime.minute() < 59) {
+                scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+                let capacityBefore = tableCapacity.capacity
+                datetime = datetime.add(1, 'minute')
+                tableCapacity.process(datetime.valueOf(), scaledownReq);
+                let capacityAfter = tableCapacity.capacity
+                expect(capacityAfter).toEqual(capacityBefore)
+            }
+
+            // first request in next hour should downscale only once
+            scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            capacityBefore = tableCapacity.capacity
+            datetime = datetime.add(1, 'minute')
+            tableCapacity.process(datetime.valueOf(), scaledownReq);
+            capacityAfter = tableCapacity.capacity
+            expect(capacityAfter).toBeLessThan(capacityBefore)
+
+            // next request in same hour should not downscale
+            scaledownReq = tableCapacity.capacity * (tableCapacity.config.target - .22)
+            capacityBefore = tableCapacity.capacity
+            datetime = datetime.add(1, 'minute')
+            tableCapacity.process(datetime.valueOf(), scaledownReq);
+            capacityAfter = tableCapacity.capacity
+            expect(capacityAfter).toEqual(capacityBefore)
+
         });
     });
 });
