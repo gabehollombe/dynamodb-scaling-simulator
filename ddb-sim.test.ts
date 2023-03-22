@@ -2,7 +2,7 @@ import {describe, expect, test} from '@jest/globals';
 import { RingBuffer } from 'ring-buffer-ts';
 import { BurstBuckets } from './burst-bucket';
 import { TableCapacity, TableCapacityConfig } from './ddb-sim';
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 
 describe('TableCapacity', () => {
     it('should initialize with correct properties', () => {
