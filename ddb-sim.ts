@@ -1,7 +1,6 @@
 import { RingBuffer } from 'ring-buffer-ts';
 import { BurstBuckets } from './burst-bucket'
-import * as dayjs from 'dayjs'
-import { time } from 'console';
+import dayjs from 'dayjs'
 
 function initCircularBuffer(capacity: number, default_value: number) {
     let buf = new RingBuffer<number>(capacity)
@@ -35,7 +34,13 @@ export class TableCapacity {
         this.throttled_timestamps = []
         this.first_scaledown_hour = -1
         this.last_process_at = -1
-        this.resetScaledownTracking()
+        this.first_scaledown_hour = -1
+        this.scaledowns_per_hour = [
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 0
+        ] // 24 hours
     }
 
     resetScaledownTracking() {
