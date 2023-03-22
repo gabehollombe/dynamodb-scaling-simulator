@@ -14,6 +14,7 @@ export type TableCapacityConfig = {
     min: number
     max: number
     target: number
+    scaling_delay_in_seconds: number
 }
 
 export class TableCapacity {
@@ -25,6 +26,8 @@ export class TableCapacity {
     first_scaledown_hour: number
     scaledowns_per_hour: number[]
     last_process_at: number
+    capacity_change_at: number
+    capacity_change_to: number
 
     constructor(config:TableCapacityConfig) {
         this.config = config
@@ -41,6 +44,8 @@ export class TableCapacity {
             0, 0, 0, 0, 0, 0, 
             0, 0, 0, 0, 0, 0
         ] // 24 hours
+        this.capacity_change_at = -1
+        this.capacity_change_to = -1
     }
 
     resetScaledownTracking() {
@@ -99,36 +104,47 @@ export class TableCapacity {
         }
 
 
-        // TRACK CURRENT UTILIZATION
+        // track utilization
         const current_utilization = amount_requested / this.capacity
         this.past_utilizations.add(current_utilization)
         
 
-        // HANDLE SCALING UP OR DOWN
-        // NOTE: assumes scaling is instantly effective (no delay)
-        const last_two_mins_of_util = this.past_utilizations.toArray().slice(-2)
-        if (last_two_mins_of_util[0] > 0 && last_two_mins_of_util[1] > 0 && last_two_mins_of_util[0] > this.config.target && last_two_mins_of_util[1] > this.config.target) {
-            // scaling up...
-            this.capacity = amount_requested / this.config.target
-            // clamp to max value since this is a scale up
-            this.capacity = Math.min(this.config.max, this.capacity)
-        }
-        
-        const scale_down_threshold = this.config.target - .20
-        if (this.past_utilizations.toArray().every(u => u < scale_down_threshold) && this.canScaleDown(timestamp)) {
-            // scaling down...
-            const hour = dayjs(timestamp).hour()
-            if (this.first_scaledown_hour == -1) {
-                this.first_scaledown_hour = hour
+        // handle scheduling a scaling event after some delay
+        if (this.capacity_change_at == -1) {
+            const last_two_mins_of_util = this.past_utilizations.toArray().slice(-2)
+            if (last_two_mins_of_util[0] > 0 && last_two_mins_of_util[1] > 0 && last_two_mins_of_util[0] > this.config.target && last_two_mins_of_util[1] > this.config.target) {
+                // scaling up...
+                this.capacity_change_to = amount_requested / this.config.target
+                // clamp to max value since this is a scale up
+                this.capacity_change_to = Math.min(this.config.max, this.capacity_change_to)
             }
-            this.scaledowns_per_hour[hour] = this.scaledowns_per_hour[hour] + 1
-            this.capacity = amount_requested / this.config.target
-            // clamp to min value since this is a scale down
-            this.capacity = Math.max(this.config.min, this.capacity)
+            
+            const scale_down_threshold = this.config.target - .20
+            if (this.past_utilizations.toArray().every(u => u < scale_down_threshold) && this.canScaleDown(timestamp)) {
+                // scaling down...
+                const hour = dayjs(timestamp).hour()
+                if (this.first_scaledown_hour == -1) {
+                    this.first_scaledown_hour = hour
+                }
+                this.scaledowns_per_hour[hour] = this.scaledowns_per_hour[hour] + 1
+                this.capacity_change_to = amount_requested / this.config.target
+                // clamp to min value since this is a scale down
+                this.capacity_change_to = Math.max(this.config.min, this.capacity_change_to)
+            }
+
+            if (this.capacity_change_to !== -1) {
+                this.capacity_change_at = dayjs(timestamp).add(this.config.scaling_delay_in_seconds, 'seconds').valueOf()
+            }
         }
 
-        // BE SURE TO ROUND CAPACITY SO WE DON'T GET SUPER NASTY FLOATING POINT MATH INEQUALITIES WHEN CONSUMING BURST
-        this.capacity = Math.round(this.capacity)
+        // handle 'realizing' the scaling event if delay is over
+        if (this.capacity_change_at != -1 && timestamp >= this.capacity_change_at) {
+            // we round capacity so we don't get super nasty floating point math inequalities when consuming burst
+            this.capacity = Math.round(this.capacity_change_to) 
+            this.capacity_change_at = -1
+            this.capacity_change_to = -1
+        }
+
 
         this.last_process_at = timestamp
         return { consumedCapacity, throttled, burstAvailable: this.burst_buckets.sum()  }

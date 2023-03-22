@@ -35,7 +35,7 @@ const processFile = async () => {
 async function main() {
     const records = await processFile()
 
-    const capSim = new TableCapacity({min: 5, max: 400, target: 0.5})
+    const capSim = new TableCapacity({min: 5, max: 400, target: 0.5, scaling_delay_in_seconds: 2*60})
 
     let timeXs: Date[] = []
     let provisionedCapacityTraceYs: number[] = []

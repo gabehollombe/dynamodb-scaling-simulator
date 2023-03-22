@@ -13,8 +13,8 @@ async function main() {
         endTime,
     })
 
-    // set your min, max, and target util here
-    const capSim = new TableCapacity({min: 5000, max: 15000, target: 0.7})
+    // set your min, max, and target util here, as well as how long before scaling takes effect after it is triggered
+    const capSim = new TableCapacity({min: 5000, max: 15000, target: 0.7, scaling_delay_in_seconds: 2*60})
 
     let timeXs: Date[] = []
     let provisionedCapacityTraceYs: number[] = []

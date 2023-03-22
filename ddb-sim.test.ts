@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 
 describe('TableCapacity', () => {
     it('should initialize with correct properties', () => {
-        const config = { min: 100, max: 1000, target: 0.5 };
+        const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
         const tableCapacity = new TableCapacity(config);
 
         expect(tableCapacity.config).toBe(config);
@@ -18,7 +18,7 @@ describe('TableCapacity', () => {
     
     describe('process', () => {
         it('should keep last 5 ticks of unused capacity as burst', () => {
-            const config = { min: 100, max: 1000, target: 0.5 };
+            const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
             const timestamp = Date.now();
             tableCapacity.capacity = 100
@@ -59,7 +59,7 @@ describe('TableCapacity', () => {
         });
         
         it('should consume from burst and throttle when capacity is not enough', () => {
-            const config = { min: 100, max: 1000, target: 0.5 };
+            const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
 
             const timestamp = Date.now();
@@ -71,7 +71,7 @@ describe('TableCapacity', () => {
             expect(throttled).toBe(100)
         });
         it('returns the amount of capacity consumed and the amount of throttled requests and the burst available', () => {
-            const config = { min: 100, max: 1000, target: 0.5 };
+            const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
             tableCapacity.capacity = 100;
             const timestamp = Date.now();
@@ -90,7 +90,7 @@ describe('TableCapacity', () => {
         });
         
         it('should only scale up after two consecutive ticks over threshold', () => {
-            const config = { min: 100, max: 1000, target: 0.5 };
+            const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
             
             const timestamp = Date.now();
@@ -106,7 +106,7 @@ describe('TableCapacity', () => {
         });
         
         it('should only scale down after 15 consecutive ticks where the utilization is 20% lower than the target', () => {
-            const config = { min: 100, max: 1000, target: 0.5 };
+            const config = { min: 100, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
             const initial_capacity = 200
             tableCapacity.capacity = initial_capacity // overriding capacity to 200 before we start lowball requests
@@ -154,7 +154,7 @@ describe('TableCapacity', () => {
         });
 
         it('does not scale down more than 27 times in a 24 hour period beginning at 00:00:00.000Z (4 in first hour that downscaling begins, one per additional hour)', () => {
-            const config = { min: 10, max: 1000, target: 0.5 };
+            const config = { min: 10, max: 1000, target: 0.5, scaling_delay_in_seconds: 0 };
             const tableCapacity = new TableCapacity(config);
             const initial_capacity = 400
             tableCapacity.capacity = initial_capacity
