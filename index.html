@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang=en>
+    <head>
+        <meta charset=utf-8>
+        <title>DDB Scaling Simulator</title>
+        <script type="module" src="index.ts"></script>
+    </head>
+    <body>
+        <div id="tableForm">
+            <p>First, use this form to take you to CloudWatch where you can download a CSV of your data for the timeframe you're interested in.</p>
+            <form>
+                <div>
+                    <label>
+                        Region
+                        <input type="text" name="region" placeholder="region (e.g. ap-southeast-1)" />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Table Name
+                        <input type="text" name="tableName" placeholder="table_name (e.g. my_ddb_table_name)" />
+                    </label>
+                </div>
+
+                <div>
+                    <button>Get CloudWatch Metrics</button>
+                </div>
+
+                <div>
+                    <p>Adjust the timeframe, and download by looking for this in CloudWatch</p>
+                    <img src="./CloudWatch_SaveAsCSV.jpg"/>
+                </div>
+            </form>
+        </div>
+
+        <div id="csvForm">
+            <p>Then use this form to select that downloaded CSV file and run the simulator.</p>
+            <form>
+                <div>
+                    <label>
+                        CSV File (from the step above)
+                        <input type="file" name="csvFile" placeholder="cloudwatchExport.csv" />
+                    </label>
+                </div>
+
+                <div>
+                    <label>
+                        Min Capacity
+                        <input type="number" name="min" value="5" />
+                    </label>
+                </div>
+
+                <div>
+                    <label>
+                        Max Capacity
+                        <input type="number" name="max" value="500" />
+                    </label>
+                </div>
+
+                <div>
+                    <label>
+                        Target Utilization (enter a number between 0.3 and 0.9)
+                        <input type="number" name="target" value="0.5" />
+                    </label>
+                </div>
+
+                <div>
+                    <label>
+                        Simulated Scaling Delay (in seconds)
+                        <input type="number" name="delay" value="2" />
+                    </label>
+                </div>
+                
+                <div>
+                    <button>Make Chart</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="graph"></div>
+    </body>
+</html>

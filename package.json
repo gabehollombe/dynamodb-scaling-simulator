@@ -2,7 +2,6 @@
   "name": "ddb-scaling-sim",
   "version": "1.0.0",
   "description": "",
-  "main": "ddb-sim.js",
   "scripts": {
     "test": "jest"
   },
@@ -16,14 +15,25 @@
     "csv": "^6.2.8",
     "dayjs": "^1.11.7",
     "nodeplotlib": "^1.1.2",
-    "plotly": "^1.0.6",
+    "plotly.js-dist": "^2.20.0",
     "ring-buffer-ts": "^1.2.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.4.4",
+    "buffer": "^5.7.1",
+    "events": "^3.3.0",
+    "https-browserify": "^1.0.0",
     "jest": "^29.5.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "punycode": "^1.4.1",
+    "querystring-es3": "^0.2.1",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
     "ts-jest": "^29.0.5",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "url": "^0.11.0"
   }
 }
