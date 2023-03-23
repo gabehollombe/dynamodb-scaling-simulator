@@ -61,4 +61,6 @@ This tool...
 
 - Plug into the AWS Pricing API so we can know accurate prices based on table's region
 
+- Show a side-by-side view in the GUI between actual vs simulated
+
 - Let the tool look at _all_ of your tables in an account, decide on 'optimal' scaling configs for each table, and calculate potential total cost savings 😀
