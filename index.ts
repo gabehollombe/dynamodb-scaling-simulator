@@ -28,10 +28,14 @@ async function onCsvFormSubmit(e) {
             target: parseFloat(formData.get('target') as any),
             scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
         }, records)
+
         const layout = {
             title:'Simulated Scaling',
-          };
-        
+            height: 1000,
+        };
+        const config = {
+            responsive: true
+        }
         traces.burstAvailableTrace.visible = 'legendonly'
         newPlot(
             'graph', 
@@ -41,7 +45,8 @@ async function onCsvFormSubmit(e) {
                 traces.throttledCapacityTrace,
                 traces.burstAvailableTrace,
             ],
-            layout
+            layout,
+            config,
         )
     };
     reader.readAsText(file);

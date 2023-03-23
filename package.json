@@ -2,7 +2,9 @@
   "name": "ddb-scaling-sim",
   "version": "1.0.0",
   "description": "",
+  "source": "index.html",
   "scripts": {
+    "start": "parcel",
     "test": "jest"
   },
   "author": "",
@@ -19,6 +21,7 @@
     "ring-buffer-ts": "^1.2.0"
   },
   "devDependencies": {
+    "parcel": "latest",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.4.4",
     "buffer": "^5.7.1",

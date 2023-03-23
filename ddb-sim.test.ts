@@ -233,5 +233,9 @@ describe('TableCapacity', () => {
                 expect(capacityAfter).toEqual(capacityBefore)
             }
         });
+        
+        it('respects the scaling_delay_in_seconds config', () => {
+            // TODO
+        })
     });
 });

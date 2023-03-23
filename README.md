@@ -15,7 +15,13 @@ This repo contains a tool to help you simulate how a provisioned-capacity Dynamo
 
 1. Run `npm install` to get the dependenicies
 
-1. Launch the GUI via `npx parcel index.html`
+1. Launch the GUI via `npm start`
+
+1. Look for the URL that Parcel is hosting the build at and open it in your browser. Defaults to http://localhost:1234
+
+1. Follow the instructions in the GUI. Use the first form to get data from CloudWatch, then the second form to configure scaling simulator settings and generate a graph.
+
+1. Look at the graph for any simulated throttled events. This is probably what you want to avoid.
 
 ## How does it work?
 This tool...

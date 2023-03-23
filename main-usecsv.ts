@@ -1,20 +1,12 @@
-import { TableCapacity } from './ddb-sim';
 import { plot, Plot } from 'nodeplotlib';
 import fs from 'fs';
 import { parse } from 'csv-parse';
+import { Record, getTraces } from './plotting'
 
-type DataRow = {
-    timestamp: Date;
-    consumedRead: number;
-    consumedWrite: number;
-    throttledReads: number;
-    throttledWrites: number
-}
-
-const processFile = async () => {
-  let records: DataRow[] = [];
+const processFileNode = async (csvFilePath: string) => {
+  let records: Record[] = [];
   const parser = fs
-    .createReadStream(`${__dirname}/data.csv`)
+    .createReadStream(csvFilePath)
     .pipe(parse({
      from_line: 6, // first 5 lines are meta data and headers
     }));
@@ -23,7 +15,7 @@ const processFile = async () => {
     const timestamp = r[0].replace(/\//g, "-",).replace(" ", "T").replace(/00$/, "00.000Z")
     records.push({
         timestamp: new Date(Date.parse(timestamp)),
-        consumedRead: Math.round(parseFloat(r[2])),
+        consumedRead: Math.round(r[2]),
         consumedWrite: Math.round(r[4]),
         throttledReads: Math.round(r[5]),
         throttledWrites: Math.round(r[6])
@@ -33,62 +25,24 @@ const processFile = async () => {
 };
 
 async function main() {
-    const records = await processFile()
-
-    const capSim = new TableCapacity({min: 5, max: 400, target: 0.5, scaling_delay_in_seconds: 2*60})
-
-    let timeXs: Date[] = []
-    let provisionedCapacityTraceYs: number[] = []
-    let consumedCapacityTraceYs: number[] = []
-    let throttledCapacityTraceYs: number[] = []
-    let burstAvailableTraceYs: number[] = []
-
-    for (let i=0; i<records.length; i++) {
-        const { timestamp, consumedRead, consumedWrite, throttledReads, throttledWrites  } = records[i]
-        const totalRequested = Math.round((consumedRead + throttledReads) / 60)
-
-        timeXs.push(timestamp)
-        provisionedCapacityTraceYs.push(capSim.capacity)
-
-        const { consumedCapacity, throttled, burstAvailable } = capSim.process(timestamp.getTime(), totalRequested)
-        consumedCapacityTraceYs.push(consumedCapacity)
-        throttledCapacityTraceYs.push(throttled)
-        burstAvailableTraceYs.push(burstAvailable)
-    }
-
-    const provisionedCapacityTrace: Plot = {
-        x: timeXs,
-        y: provisionedCapacityTraceYs,
-        type: 'scatter',
-        name: 'Provisioned',
-    }
-
-    const consumedCapacityTrace: Plot = {
-        x: timeXs,
-        y: consumedCapacityTraceYs,
-        type: 'scatter',
-        name: 'Consumed',
-    }
-
-    const throttledCapacityTrace: Plot = {
-        x: timeXs,
-        y: throttledCapacityTraceYs,
-        type: 'scatter',
-        name: 'Throttled',
-    }
-
-    const burstAvailableTrace: Plot = {
-        x: timeXs,
-        y: burstAvailableTraceYs,
-        type: 'scatter',
-        name: 'Burst Available',
-    }
+    const records = await processFileNode(`${__dirname}/data.csv`)
+    const traces = getTraces({
+        min: 5, 
+        max: 400, 
+        target: 0.5, 
+        scaling_delay_in_seconds: 1*60
+    }, records)
 
     const layout = {
         width: 2000,
     }
 
-    plot([provisionedCapacityTrace, consumedCapacityTrace, throttledCapacityTrace, burstAvailableTrace], layout);
+    plot([
+        traces.provisionedCapacityTrace as Plot,
+        traces.consumedCapacityTrace as Plot,
+        traces.throttledCapacityTrace as Plot,
+        traces.burstAvailableTrace as Plot,
+    ], layout);
 }
 
 main()
