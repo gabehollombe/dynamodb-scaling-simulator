@@ -1,6 +1,7 @@
 import { getCloudWatchUrl } from './cloudwatch-opener'
 import { getTraces, SimTimestepInput } from './plotting'
 import { newPlot } from 'plotly.js-dist'
+import dayjs from 'dayjs'
 
 type Trace = {
     x: string[]
@@ -136,9 +137,30 @@ function arrayToMetricsRecords(arr: string[][]): { timestamp: Date; provisionedR
         }
     })
 }
+
+function groupBy<T>(arr: T[], fn: (item: T) => any) {
+    return arr.reduce<Record<string, T[]>>((prev, curr) => {
+        const groupKey = fn(curr);
+        const group = prev[groupKey] || [];
+        group.push(curr);
+        return { ...prev, [groupKey]: group };
+    }, {});
+}
+
 function calculateCost(trace: Trace, pricePerHour: number): number {
-    return trace.y.reduce((sum, consumedThisMinute) => {
-        return sum + consumedThisMinute * (pricePerHour / 60.0)
-    }, 0)
+    // DynamoDB actually bills by sampling a random minute in the hour and bills for the hour based on the provisioned capacity at that time
+    // For the purposes of estimating cost here, we will be conservative and use the max provisioned value for the hour to determine the cost.
+
+    const xys = trace.x.map((x, i) => [x, trace.y[i]])
+    const byHour = groupBy(xys, (([x,y]) => dayjs(x).hour()))
+    const justTheYsCollectedIntoArrays = Object.values(byHour).map(xys => xys.map(xy => xy[1]))
+    const hourMaxes = justTheYsCollectedIntoArrays.map((ys) => Math.max(...ys))
+    return hourMaxes.reduce((sum, consumed) => { return sum + consumed * pricePerHour })
+
+    // For archival purposes...
+    // This will return the sum of the hourly rate billed one minute at a time:
+    // return trace.y.reduce((sum, consumedThisMinute) => {
+    //     return sum + consumedThisMinute * (pricePerHour / 60.0)
+    // }, 0)
 }
 
