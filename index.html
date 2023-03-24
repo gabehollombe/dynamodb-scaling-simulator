@@ -43,26 +43,55 @@
                     </label>
                 </div>
 
-                <div>
-                    <label>
-                        Min Capacity
-                        <input type="number" name="min" value="5" step="1" />
-                    </label>
-                </div>
+                <fieldset>
+                    <legend>Simulated Read Capacity Autoscaling Config</legend>
 
-                <div>
-                    <label>
-                        Max Capacity
-                        <input type="number" name="max" value="500" step="1" />
-                    </label>
-                </div>
+                    <div>
+                        <label>
+                            RCU Min Capacity
+                            <input type="number" name="rcu_min" value="5" step="1" />
+                        </label>
+                    </div>
 
-                <div>
-                    <label>
-                        Target Utilization (enter a number between 0.3 and 0.9)
-                        <input type="number" name="target" value="0.5" step="0.01" />
-                    </label>
-                </div>
+                    <div>
+                        <label>
+                            RCU Max Capacity
+                            <input type="number" name="rcu_max" value="500" step="1" />
+                        </label>
+                    </div>
+
+                    <div>
+                        <label>
+                            RCU Target Utilization (enter a number between 0.3 and 0.9)
+                            <input type="number" name="rcu_target" value="0.5" step="0.01" />
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Simulated Write Capacity Autoscaling Config</legend>
+
+                    <div>
+                        <label>
+                            WCU Min Capacity
+                            <input type="number" name="wcu_min" value="5" step="1" />
+                        </label>
+                    </div>
+
+                    <div>
+                        <label>
+                            WCU Max Capacity
+                            <input type="number" name="wcu_max" value="500" step="1" />
+                        </label>
+                    </div>
+
+                    <div>
+                        <label>
+                            WCU Target Utilization (enter a number between 0.3 and 0.9)
+                            <input type="number" name="wcu_target" value="0.5" step="0.01" />
+                        </label>
+                    </div>
+                </fieldset>
 
                 <div>
                     <label>

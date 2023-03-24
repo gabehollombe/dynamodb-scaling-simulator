@@ -27,16 +27,16 @@ async function onCsvFormSubmit(e) {
         const writeRecords = records.map(r => {return {timestamp: r.timestamp, consumed: r.consumedWrite, throttled: r.throttledWrites}})
 
         const readTraces = getTraces({
-            min: parseInt(formData.get('min') as any, 10),
-            max: parseInt(formData.get('max') as any, 10),
-            target: parseFloat(formData.get('target') as any),
+            min: parseInt(formData.get('rcu_min') as any, 10),
+            max: parseInt(formData.get('rcu_max') as any, 10),
+            target: parseFloat(formData.get('rcu_target') as any),
             scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
         }, readRecords)
 
         const writeTraces = getTraces({
-            min: parseInt(formData.get('min') as any, 10),
-            max: parseInt(formData.get('max') as any, 10),
-            target: parseFloat(formData.get('target') as any),
+            min: parseInt(formData.get('wcu_min') as any, 10),
+            max: parseInt(formData.get('wcu_max') as any, 10),
+            target: parseFloat(formData.get('wcu_target') as any),
             scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
         }, writeRecords)
 
