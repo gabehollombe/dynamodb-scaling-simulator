@@ -67,7 +67,6 @@
                 <div class="row">
                     <em>Configure your simulated RCU scaling</em>
                 </div>
-                
                 <div class="row">
                     <div class="four columns">
                         <label for="rcu_min">RCU Min Capacity</label>
@@ -88,7 +87,6 @@
                 <div class="row">
                     <em>Configure your simulated WCU scaling</em>
                 </div>
-                
                 <div class="row">
                     <div class="four columns">
                         <label for="wcu_min">WCU Min Capacity</label>
@@ -108,23 +106,39 @@
 
                 <div class="row">
                     <em>Configure the simulated scaling delay.</em>
-                    <p>This controls how long it takes to realize a change in capacity after the DDB simulator decides it wants to change capacity.</p>
                 </div>
-
                 <div class="row">
+                    This controls how long it takes to realize a change in capacity after the DDB simulator decides it wants to change capacity.
                     <label for="delay">Simulated Scaling Delay (in seconds)</label>
                     <input type="number" name="delay" id="delay" value="120" />
                 </div>
+
+                <div class="row">
+                    <div><em>Pricing Data</em></div>
+                    Enter the RCU and WCU cost per provisioned hour for your region.
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="pricingRcu">RCU Price per hour</label>
+                        <input type="number" name="rcu_pricing" id="rcu_pricing" value="0.000148" step="0.00000001" />
+                    </div>
+                    <div class="three columns">
+                        <label for="pricingWcu">WCU Price per hour</label>
+                        <input type="number" name="wcu_pricing" id="wcu_pricing" value="0.00074" step="0.00000001" />
+                    </div>
+                </div>
                 
                 <div>
-                    <button class="button-primary">Make Chart</button>
+                    <button class="button-primary">Make Charts</button>
                 </div>
             </form>
         </div>
 
         <div id="readsGraph"></div>
+        <div id="readsPrice"></div>
 
         <div id="writesGraph"></div>
+        <div id="writesPrice"></div>
     </div>
     </body>
 </html>
