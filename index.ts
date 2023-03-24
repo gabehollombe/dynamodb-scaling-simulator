@@ -41,7 +41,7 @@ async function onCsvFormSubmit(e) {
         }, writeRecords)
 
         const layout = {
-            height: 1000,
+            height: 600,
         };
         const config = {
             responsive: true
@@ -70,6 +70,8 @@ async function onCsvFormSubmit(e) {
             {...layout, title: 'Simulated Writes'},
             config,
         )
+
+        document.querySelector('#readsGraph')?.scrollIntoView()
     };
     reader.readAsText(file);
 }
