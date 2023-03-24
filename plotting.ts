@@ -9,7 +9,7 @@ export type SimTimestepInput = {
 export function getTraces(config: TableCapacityConfig, records: SimTimestepInput[]) {
     const capSim = new TableCapacity(config)
 
-    let timeXs: Date[] = []
+    let timeXs: string[] = []
     let provisionedCapacityTraceYs: number[] = []
     let consumedCapacityTraceYs: number[] = []
     let throttledCapacityTraceYs: number[] = []
@@ -20,7 +20,7 @@ export function getTraces(config: TableCapacityConfig, records: SimTimestepInput
         const timestamp = records[i].timestamp
         const totalRequested = Math.round((record.consumed + record.throttled) / 60)
 
-        timeXs.push(timestamp)
+        timeXs.push(timestamp.toISOString())
         provisionedCapacityTraceYs.push(capSim.capacity)
 
         const { consumedCapacity, throttled, burstAvailable } = capSim.process(timestamp.getTime(), totalRequested)
