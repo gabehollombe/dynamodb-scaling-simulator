@@ -54,8 +54,6 @@ This tool...
 
 - [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
 
-- [ ] Cache CloudWatch data locally for subsequent runs on the same table/dateranges
-
 ## Ideas
 - Auto "solve" for different configs that result in zero throttles and optimize for price.
 
