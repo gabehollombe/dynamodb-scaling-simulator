@@ -1,14 +1,12 @@
 import { TableCapacity, TableCapacityConfig } from './ddb-sim';
 
-export type Record = { 
+export type SimTimestepInput = { 
     timestamp: Date, 
-    consumedRead: number, 
-    consumedWrite: number, 
-    throttledReads: number, 
-    throttledWrites: number
+    consumed: number, 
+    throttled: number, 
 }
 
-export function getTraces(config: TableCapacityConfig, records: Record[]) {
+export function getTraces(config: TableCapacityConfig, records: SimTimestepInput[]) {
     const capSim = new TableCapacity(config)
 
     let timeXs: Date[] = []
@@ -18,8 +16,9 @@ export function getTraces(config: TableCapacityConfig, records: Record[]) {
     let burstAvailableTraceYs: number[] = []
 
     for (let i=0; i<records.length; i++) {
-        const { timestamp, consumedRead, consumedWrite, throttledReads, throttledWrites  } = records[i]
-        const totalRequested = Math.round((consumedRead + throttledReads) / 60)
+        const record = records[i]
+        const timestamp = records[i].timestamp
+        const totalRequested = Math.round((record.consumed + record.throttled) / 60)
 
         timeXs.push(timestamp)
         provisionedCapacityTraceYs.push(capSim.capacity)

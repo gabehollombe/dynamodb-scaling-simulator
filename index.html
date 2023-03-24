@@ -35,7 +35,6 @@
 
         <div id="csvForm">
             <p>Then use this form to select that downloaded CSV file and run the simulator.</p>
-            <p><strong>Important note:</strong>This tool currently is hard coded to only generate a graph for READS. Writes is coming soon...</p>
             <form>
                 <div>
                     <label>
@@ -47,21 +46,21 @@
                 <div>
                     <label>
                         Min Capacity
-                        <input type="number" name="min" value="5" />
+                        <input type="number" name="min" value="5" step="1" />
                     </label>
                 </div>
 
                 <div>
                     <label>
                         Max Capacity
-                        <input type="number" name="max" value="500" />
+                        <input type="number" name="max" value="500" step="1" />
                     </label>
                 </div>
 
                 <div>
                     <label>
                         Target Utilization (enter a number between 0.3 and 0.9)
-                        <input type="number" name="target" value="0.5" />
+                        <input type="number" name="target" value="0.5" step="0.01" />
                     </label>
                 </div>
 
@@ -78,6 +77,8 @@
             </form>
         </div>
 
-        <div id="graph"></div>
+        <div id="readsGraph"></div>
+
+        <div id="writesGraph"></div>
     </body>
 </html>

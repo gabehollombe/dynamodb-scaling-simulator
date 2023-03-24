@@ -1,5 +1,5 @@
 import { getCloudWatchUrl } from './cloudwatch-opener'
-import { getTraces, Record } from './plotting'
+import { getTraces, SimTimestepInput } from './plotting'
 import { newPlot } from 'plotly.js-dist'
 
 function getCloudwatchMetrics(region: string, tableName: string) {
@@ -21,31 +21,53 @@ async function onCsvFormSubmit(e) {
     reader.onload = function (e) {
         const text = e.target!.result;
         const data = csvToArray(text as string, ",", 5);
+
         const records = arrayToMetricsRecords(data)
-        const traces = getTraces({
+        const readRecords = records.map(r => {return {timestamp: r.timestamp, consumed: r.consumedRead, throttled: r.throttledReads}})
+        const writeRecords = records.map(r => {return {timestamp: r.timestamp, consumed: r.consumedWrite, throttled: r.throttledWrites}})
+
+        const readTraces = getTraces({
             min: parseInt(formData.get('min') as any, 10),
             max: parseInt(formData.get('max') as any, 10),
             target: parseFloat(formData.get('target') as any),
             scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
-        }, records)
+        }, readRecords)
+
+        const writeTraces = getTraces({
+            min: parseInt(formData.get('min') as any, 10),
+            max: parseInt(formData.get('max') as any, 10),
+            target: parseFloat(formData.get('target') as any),
+            scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
+        }, writeRecords)
 
         const layout = {
-            title:'Simulated Scaling',
             height: 1000,
         };
         const config = {
             responsive: true
         }
-        traces.burstAvailableTrace.visible = 'legendonly'
+        readTraces.burstAvailableTrace.visible = 'legendonly'
+        writeTraces.burstAvailableTrace.visible = 'legendonly'
         newPlot(
-            'graph', 
+            'readsGraph', 
             [
-                traces.provisionedCapacityTrace,
-                traces.consumedCapacityTrace,
-                traces.throttledCapacityTrace,
-                traces.burstAvailableTrace,
+                readTraces.provisionedCapacityTrace,
+                readTraces.consumedCapacityTrace,
+                readTraces.throttledCapacityTrace,
+                readTraces.burstAvailableTrace,
             ],
-            layout,
+            {...layout, title: 'Simulated Reads'},
+            config,
+        )
+        newPlot(
+            'writesGraph', 
+            [
+                writeTraces.provisionedCapacityTrace,
+                writeTraces.consumedCapacityTrace,
+                writeTraces.throttledCapacityTrace,
+                writeTraces.burstAvailableTrace,
+            ],
+            {...layout, title: 'Simulated Writes'},
             config,
         )
     };
@@ -68,13 +90,15 @@ function csvToArray(str: string, delimiter = ",", skipLines=0) {
     return arr;
 }
 
-function arrayToMetricsRecords(arr: string[][]): Record[] {
+function arrayToMetricsRecords(arr: string[][]): { timestamp: Date; provisionedRead: number; consumedRead: number; provisionedWrite: number; consumedWrite: number; throttledReads: number; throttledWrites: number }[] {
     // cols are: datetime, provisioned read avg, consumed read, provisioned write avg, consumed write, read throttles, write throttles
     return arr.map((r: string[])=>{
         const timestamp = r[0].replace(/\//g, "-",).replace(" ", "T").replace(/00$/, "00.000Z")
         return {
             timestamp: new Date(Date.parse(timestamp)),
+            provisionedRead: Math.round(r[1]),
             consumedRead: Math.round(r[2]),
+            provisionedWrite: Math.round(r[3]),
             consumedWrite: Math.round(r[4]),
             throttledReads: Math.round(r[5]),
             throttledWrites: Math.round(r[6])
