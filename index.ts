@@ -65,12 +65,12 @@ function onCsvFileReady(formData: FormData, e) {
         worker.postMessage({ taskId: 'writeOptimize', scalingConfig: writesConfig, records: writeRecords, pricePerHour: wcuPricing })
 
         worker.onmessage = (e) => {
-            const { taskId, bestPrice, bestTarget } = e.data
+            const { taskId, bestMin, bestMax, bestPrice, bestTarget } = e.data
             if (taskId == 'readOptimize') {
-                document.querySelector('#readsOptimized').innerHTML = `Optimized RCU config target util is ${bestTarget}% yielding avg daily price of ${bestPrice}`
+                document.querySelector('#readsOptimized').innerHTML = `Optimized RCU config target util is minRCU:${bestMin}  maxRCU:${bestMax} targetUtil:${bestTarget}% yielding avg daily price of ${bestPrice}`
             }
             if (taskId == 'writeOptimize') {
-                document.querySelector('#writesOptimized').innerHTML = `Optimized WCU config target util is ${bestTarget}% yielding avg daily price of ${bestPrice}`
+                document.querySelector('#writesOptimized').innerHTML = `Optimized WCU config target util is minWCU:${bestMin}  maxWCU:${bestMax} targetUtil:${bestTarget}% yielding avg daily price of ${bestPrice}`
             }
         }
 

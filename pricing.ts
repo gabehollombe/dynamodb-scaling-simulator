@@ -39,10 +39,14 @@ function makeObjectiveFn(scalingConfig: TableCapacityConfig, records: SimTimeste
     return function(vals: any[]){
       // make new config with adjusted target based on injected value from solver...
       // vals comes in with a target util param as an integer, so make it a float...
-      let [ target  ] = vals
+      let [ 
+            min,
+            max,
+            target,
+        ] = vals
       target = target / 100.0
 
-      const adjustedConfig = {...scalingConfig, target}
+      const adjustedConfig = {...scalingConfig, min, max, target}
 
       // run the sim with our data
       const traces = getTraces(adjustedConfig, records)
@@ -63,10 +67,32 @@ function makeObjectiveFn(scalingConfig: TableCapacityConfig, records: SimTimeste
 
 export function optimize(scalingConfig: TableCapacityConfig, records: SimTimestepInput[], pricePerHour: number) {
     const costObjFn = makeObjectiveFn(scalingConfig, records, pricePerHour)
-    const costDims = [ optimjs.Integer(30, 90) ] // this is the range of values to test for targetUtil on the table
-    const optimizationSteps = 100
-    const dummy_result = optimjs.dummy_minimize(costObjFn, costDims, optimizationSteps)
-    const bestTarget = dummy_result.best_x
+
+    const summedDemands = records.map((_, i) => { return Math.round((records[i].consumed + records[i].throttled) / 60)})
+
+    // Figure out sane values for min and max capacity config
+    const minBottom = 0
+    const minTop = Math.max(...summedDemands)
+    const maxBottom = Math.max(...summedDemands) * 0.5
+    const maxTop = 3 * Math.max(...summedDemands)
+
+
+    // TODO: consider droping min/max cap config from the optimization search. We can use our own brains for this value right?
+
+    const costDims = [ 
+        optimjs.Integer(minBottom, minTop), // min capacity
+        optimjs.Integer(maxBottom, maxTop), // max capacity
+        optimjs.Integer(30, 90), // target utilization
+    ] 
+    const optimizationSteps = 512
+    const dummy_result = optimjs.rs_minimize(costObjFn, costDims, optimizationSteps)
+    const [bestMin, bestMax, bestTarget] = dummy_result.best_x
     const bestPrice = dummy_result.best_y
-    return { bestTarget, bestPrice }
+    
+    return { 
+        bestMin,
+        bestMax,
+        bestTarget, 
+        bestPrice 
+    }
 }
