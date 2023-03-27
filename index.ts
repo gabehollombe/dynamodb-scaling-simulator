@@ -1,7 +1,7 @@
 import { getCloudWatchUrl } from './cloudwatch-opener'
 import { getTraces, Trace, SimTimestepInput } from './plotting'
 import { newPlot } from 'plotly.js-dist'
-import { calculateCost, optimize }  from './pricing'
+import { calculateCost, optimize } from './pricing'
 import { arrayToMetricsRecords, makeRecordsForSimulator } from './csv-ingestion'
 
 import dayjs from 'dayjs'
@@ -25,7 +25,7 @@ function getScalingConfigsFromFormData(formData: FormData) {
         scaling_delay_in_seconds: parseInt(formData.get('delay') as any, 10)
     }
 
-    return {readsConfig, writesConfig}
+    return { readsConfig, writesConfig }
 }
 
 function getTracesFromFormData(formData: FormData, readRecords: SimTimestepInput[], writeRecords: SimTimestepInput[]) {
@@ -54,15 +54,31 @@ function onCsvFileReady(formData: FormData, e) {
     document.querySelector('#writesPrice').innerHTML = wcuCost
 
 
-    document.querySelector('#readsOptimized').innerHTML = `Calculating optimized config for reads...`
-    document.querySelector('#writesOptimized').innerHTML = `Calculating optimized config for writes...`
-    setTimeout(()=>{
+    if (window.Worker) {
+        const worker = new Worker(new URL("./optimization-worker.ts", import.meta.url), { type: 'module' })
+
+        document.querySelector('#readsOptimized').innerHTML = `Calculating optimized config for reads...`
+        document.querySelector('#writesOptimized').innerHTML = `Calculating optimized config for writes...`
+
         const { readsConfig, writesConfig } = getScalingConfigsFromFormData(formData)
-        const readsOptimized = optimize(readsConfig, readRecords, rcuPricing)
-        const writesOptimized = optimize(writesConfig, writeRecords, wcuPricing)
-        document.querySelector('#readsOptimized').innerHTML = `Optimized RCU config target util is ${readsOptimized.bestTarget} yielding avg daily price of ${readsOptimized.bestPrice}`
-        document.querySelector('#writesOptimized').innerHTML = `Optimized WCU config target util is ${writesOptimized.bestTarget} yielding avg daily price of ${writesOptimized.bestPrice}`
-    }, 100)
+        worker.postMessage({ taskId: 'readOptimize', scalingConfig: readsConfig, records: readRecords, pricePerHour: rcuPricing })
+        worker.postMessage({ taskId: 'writeOptimize', scalingConfig: writesConfig, records: writeRecords, pricePerHour: wcuPricing })
+
+        worker.onmessage = (e) => {
+            const { taskId, bestPrice, bestTarget } = e.data
+            if (taskId == 'readOptimize') {
+                document.querySelector('#readsOptimized').innerHTML = `Optimized RCU config target util is ${bestTarget}% yielding avg daily price of ${bestPrice}`
+            }
+            if (taskId == 'writeOptimize') {
+                document.querySelector('#writesOptimized').innerHTML = `Optimized WCU config target util is ${bestTarget}% yielding avg daily price of ${bestPrice}`
+            }
+        }
+
+    }
+    else {
+        document.querySelector('#readsOptimized').innerHTML = `Error: no Web Worker support. Skipping optimization.`
+        document.querySelector('#writesOptimized').innerHTML = `Error: no Web Worker support. Skipping optimization.`
+    }
 }
 
 
