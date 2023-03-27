@@ -1,10 +1,18 @@
 import { TableCapacity, TableCapacityConfig } from './ddb-sim';
 
+export type Trace = {
+    x: string[]
+    y: number[]
+    type: string
+    name: string 
+}
+
 export type SimTimestepInput = { 
     timestamp: Date, 
     consumed: number, 
     throttled: number, 
 }
+
 
 export function getTraces(config: TableCapacityConfig, records: SimTimestepInput[]) {
     const capSim = new TableCapacity(config)
