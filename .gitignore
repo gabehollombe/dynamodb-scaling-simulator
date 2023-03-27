@@ -1,0 +1,12 @@
+.DS_Store
+.swp
+.parcel-cache/
+.vscode/
+*.csv
+dist/
+main-autofetch.ts
+node_modules/
+notes.md
+scratch
+
+no changes added to commit (use "git add" and/or "git commit -a")
