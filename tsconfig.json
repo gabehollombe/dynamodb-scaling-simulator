@@ -14,5 +14,13 @@
       "forceConsistentCasingInFileNames": true,
       "moduleResolution": "node",
       "typeRoots": ["./node_modules/@types", "./typings"]
+    },
+
+    "ts-node": {
+      // these options are overrides used only by ts-node
+      // same as ts-node's --compilerOptions flag and the TS_NODE_COMPILER_OPTIONS environment variable
+      "compilerOptions": {
+        "module": "commonjs"
+      }
     }
   }

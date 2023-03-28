@@ -1,7 +1,8 @@
 import { fromIni } from "@aws-sdk/credential-providers";
 import { CloudWatchClient, GetMetricDataCommand } from "@aws-sdk/client-cloudwatch";
+import { DynamoDBClient, ListTablesCommand } from "@aws-sdk/client-dynamodb";
 
-type params = {
+type FetchTableMetricsParams = {
     profile: string
     region: string
     tableName: string
@@ -9,7 +10,27 @@ type params = {
     endTime: Date
 }
 
-export async function fetchTableMetrics(params: params): Promise<{ timestamp: Date, consumedRead: number, consumedWrite: number, throttledReads: number, throttledWrites: number }[]> {
+export async function getAllTableNames({region, profile}: {region: string, profile: string}) {
+    const client = new DynamoDBClient({ 
+        region,
+        credentials: fromIni({profile})
+    })
+    let tableNames: string[] = []
+    let lastEvaluatedTableName 
+    do {
+        const response = await client.send(new ListTablesCommand({ExclusiveStartTableName: lastEvaluatedTableName}))
+        lastEvaluatedTableName = response.LastEvaluatedTableName as any
+        if (response.TableNames) {
+            tableNames = tableNames.concat(response.TableNames)
+        }
+
+    } while (lastEvaluatedTableName !== undefined)
+
+    return tableNames
+}
+
+
+export async function fetchTableMetrics(params: FetchTableMetricsParams): Promise<{ timestamp: Date, consumedRead: number, consumedWrite: number, throttledReads: number, throttledWrites: number }[]> {
     const cloudwatch = new CloudWatchClient({ 
         region: params.region,
         credentials: fromIni({profile: params.profile})

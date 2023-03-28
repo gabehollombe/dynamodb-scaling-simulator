@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.292.0",
+    "@aws-sdk/client-dynamodb": "^3.300.0",
     "@aws-sdk/credential-providers": "^3.292.0",
     "@aws-sdk/types": "^3.292.0",
     "aws-sdk": "^2.1336.0",
