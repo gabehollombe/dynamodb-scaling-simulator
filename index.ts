@@ -35,6 +35,26 @@ function getTracesFromFormData(formData: FormData, readRecords: SimTimestepInput
     return { readTraces, writeTraces }
 }
 
+function addResultRows({tableId, description, min, max, target, cost}) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    const template = document.querySelector('#resultRow');
+
+    if ('content' in document.createElement('template')) {
+        const clone = template.content.cloneNode(true);
+        let td = clone.querySelectorAll("td");
+        td[0].textContent = description
+        td[1].textContent = min
+        td[2].textContent = max
+        td[3].textContent = target
+        td[4].textContent = `$ ${Math.round(cost * 100)/100} USD `// round to 2 deicimal places
+    
+        tbody.prepend(clone);
+    
+    } else {
+        tbody.innerHTML = `<tr><td colspan="5">${description} | ${min} | ${max} | ${target} | ${cost}</td></tr>`
+    }
+}
+
 function onCsvFileReady(formData: FormData, e) {
     const text = e.target!.result;
     const data = csvToArray(text as string, ",", 5)
@@ -50,34 +70,66 @@ function onCsvFileReady(formData: FormData, e) {
     const wcuPricing: number = parseFloat(formData.get('wcu_pricing'))
     const rcuCost = calculateCost(readTraces.provisionedCapacityTrace, rcuPricing)
     const wcuCost = calculateCost(writeTraces.provisionedCapacityTrace, wcuPricing)
-    document.querySelector('#readsPrice').innerHTML = rcuCost
-    document.querySelector('#writesPrice').innerHTML = wcuCost
-
 
     if (window.Worker) {
         const worker = new Worker(new URL("./optimization-worker.ts", import.meta.url), { type: 'module' })
-
-        document.querySelector('#readsOptimized').innerHTML = `Calculating optimized config for reads...`
-        document.querySelector('#writesOptimized').innerHTML = `Calculating optimized config for writes...`
 
         const { readsConfig, writesConfig } = getScalingConfigsFromFormData(formData)
         worker.postMessage({ taskId: 'readOptimize', scalingConfig: readsConfig, records: readRecords, pricePerHour: rcuPricing })
         worker.postMessage({ taskId: 'writeOptimize', scalingConfig: writesConfig, records: writeRecords, pricePerHour: wcuPricing })
 
+        addResultRows({
+            tableId: 'readsResults', 
+            description: 'Your manual config (entered above)', 
+            min: readsConfig.min,
+            max: readsConfig.max,
+            target: readsConfig.target,
+            cost: rcuCost
+        })
+
+        addResultRows({
+            tableId: 'writesResults', 
+            description: 'Your manual config (entered above)', 
+            min: writesConfig.min,
+            max: writesConfig.max,
+            target: writesConfig.target,
+            cost: wcuCost
+        })
+
+
         worker.onmessage = (e) => {
             const { taskId, bestMin, bestMax, bestPrice, bestTarget } = e.data
             if (taskId == 'readOptimize') {
-                document.querySelector('#readsOptimized').innerHTML = `Optimized RCU config target util is minRCU:${bestMin}  maxRCU:${bestMax} targetUtil:${bestTarget}% yielding avg daily price of ${bestPrice}`
+                document.querySelector('table#readsResults tbody tr.pleaseWait')?.setAttribute('hidden', 'true')
+
+                addResultRows({
+                    tableId: 'readsResults', 
+                    description: 'Optimized config (from my auto tuning)', 
+                    min: bestMin,
+                    max: bestMax,
+                    target: bestTarget,
+                    cost: bestPrice
+                })
+
             }
             if (taskId == 'writeOptimize') {
-                document.querySelector('#writesOptimized').innerHTML = `Optimized WCU config target util is minWCU:${bestMin}  maxWCU:${bestMax} targetUtil:${bestTarget}% yielding avg daily price of ${bestPrice}`
+                document.querySelector('table#writesResults tbody tr.pleaseWait')?.setAttribute('hidden', 'true')
+
+                addResultRows({
+                    tableId: 'writesResults', 
+                    description: 'Optimized config (from my auto tuning)', 
+                    min: bestMin,
+                    max: bestMax,
+                    target: bestTarget,
+                    cost: bestPrice
+                })
             }
         }
 
     }
     else {
-        document.querySelector('#readsOptimized').innerHTML = `Error: no Web Worker support. Skipping optimization.`
-        document.querySelector('#writesOptimized').innerHTML = `Error: no Web Worker support. Skipping optimization.`
+        document.querySelector('#readsResults tbody tr.pleaseWait td').innerHTML = `Error: no Web Worker support. Skipping optimization.`
+        document.querySelector('#writesResults tbody tr.pleaseWait td').innerHTML = `Error: no Web Worker support. Skipping optimization.`
     }
 }
 

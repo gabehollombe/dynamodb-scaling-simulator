@@ -136,24 +136,56 @@
 
         <div id="results" style="display: none;">
             <hr / >
+
             <h3>Reads</h3>
+            <div id="readsGraph" class="u-full-width""></div>
 
-            <div id="readsGraph" class="row"></div>
-            <h4>Avg cost</h4>
-            <div id="readsPrice"></div> avg daily cost
+            <template id="resultRow">
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+            </template>
 
-            <h4>Optmized scaling config</h4>
-            <div id="readsOptimized"></div>
-
+            <table id="readsResults">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Target Utilization</th>
+                        <th>Avg Daily Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <tr class="pleaseWait">
+                  <td colspan="5">Calculating optimized config...</td>
+                </tr>
+                </tbody>
+            </table>
 
             <h3>Writes</h3>
             <div id="writesGraph" class="row"></div>
 
-            <h4>Avg cost</h4>
-            <div id="writesPrice"></div> avg daily cost
-
-            <h4>Optmized scaling config</h4>
-            <div id="writesOptimized"></div>
+            <table id="writesResults">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Target Utilization</th>
+                        <th>Avg Daily Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <tr class="pleaseWait">
+                  <td colspan="5">Calculating optimized config...</td>
+                </tr>
+                </tbody>
+            </table>
 
         </div>
     </div>
