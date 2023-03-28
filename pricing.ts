@@ -24,9 +24,7 @@ export function calculateCost(trace: Trace, pricePerHour: number): number {
     const byHour = groupBy(xys, (([x,y]) => `${dayjs(x).year()}|${dayjs(x).month()}|${dayjs(x).date()}|${dayjs(x).hour()}`))
     const justTheYsCollectedIntoArrays = Object.values(byHour).map(xys => xys.map(xy => parseFloat(xy[1] as string)))
     const hourMaxes = justTheYsCollectedIntoArrays.map((ys) => Math.max(...ys))
-    const someOfHourlyCosts = hourMaxes.reduce((sum, consumed) => { return sum + consumed * pricePerHour })
-
-    return (someOfHourlyCosts / hourMaxes.length) * 24 // avg hourly cost * 24 for daily avg cost
+    return sum(hourMaxes) * pricePerHour / hourMaxes.length * 24
 
     // For archival purposes...
     // This will return the sum of the hourly rate billed one minute at a time:
