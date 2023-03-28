@@ -35,11 +35,15 @@ This tool...
 
 5. Records the results of serving that minute of demand (amount of capacity successfully consumed, amount of requested capacity that was throttled)
 
-6. Graphs these metrics for you to look at
+6. Graphs these metrics and calculate avg daily cost for your scaling config
+
+7. Also attempts to 'solve' for an optimized scaling config that results in no throttles and has the lowest price.
 
 
 ## Caveats
 - Does not think about hot partitions as a reason to throttle. Only considers total capacity avaialble vs requested.
+
+- We get data from CloudWatch at the minute-level and we simulate by calculating the average demand per second for that minute (total demand for the minute / 60). This means that if there was a 'micro burst' of a few seconds of super high demand on the table and the rest of the minute was relatively quiet, we'll see a low average here. In reality, some of that 'micro burst' should be throttled in the simulator but we can't simulate at the second level of granularity because we lack the data. So just be aware that **while this simulation still pretty helpful, it's not anything close to a promise of what actually happened**.
 
 - Correctly simulates scaling up (when last 2 minutes of usage are higher than provisioned capacity) and down (when last 15 mintues are all at a utilization that is at least 20% lower than the target utilization), according to [this knowledge base article](https://aws.amazon.com/premiumsupport/knowledge-center/dynamodb-auto-scaling/). However, it requires you to configure how long of a delay you want to simulate between when the table _wants_ to scale and when that scaling event actually occurs.
   
@@ -55,7 +59,6 @@ This tool...
 - [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
 
 ## Ideas
-- Auto "solve" for different configs that result in zero throttles and optimize for price.
 
 - Plug into the AWS Pricing API so we can know accurate prices based on table's region
 
