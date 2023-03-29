@@ -2,6 +2,42 @@ import { SimTimestepInput, Trace, getTraces } from './plotting'
 import dayjs from 'dayjs'
 import * as optimjs from 'optimization-js'
 import { TableCapacityConfig } from './ddb-sim';
+import { Readable } from 'stream';
+import { parse } from 'csv-parse';
+
+enum ReadOrWrite {
+    Read = 'Read',
+    Write = 'Write'
+}
+
+enum TableMode {
+    OnDemand = 'OnDemand',
+    ProvisionedCapacity = 'ProvisionedCapacity'
+}
+
+enum TermType {
+    Reserved = 'Reserved',
+    OnDemand = 'OnDemand'
+}
+
+enum StorageClass {
+    Standard = 'Standard',
+    InfrequentAccess = 'InfrequentAccess'
+}
+
+type PriceRecord = {
+    termType: TermType,
+    contractLength: string
+    unit: string
+    pricePerUnit: number
+    currency: string
+    region: string
+    mode: TableMode
+    storageClass: StorageClass
+    description: string
+    row?: any
+}
+
 
 function sum(arr: number[]) {
     return arr.reduce((sum, n) => { return sum + n }, 0)
@@ -93,4 +129,79 @@ export function optimize(scalingConfig: TableCapacityConfig, records: SimTimeste
         bestTarget, 
         bestPrice 
     }
+}
+
+
+
+async function getPricesByRegion() {
+    const url = `https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonDynamoDB/current/index.csv`
+    var s = new Readable()
+    const csv = await (await fetch(url)).text()
+    s.push(csv)    // the string you want
+    s.push(null) 
+
+    let records = new Map<string, PriceRecord[]>()
+
+    const parser = s
+      .pipe(parse({
+       from_line: 7, // first lines are meta data and headers
+    }));
+    for await (let r of parser) {
+        let termType 
+        if (!["OnDemand", "Reserved"].includes(r[3])) {
+            throw new Error(`Can't parse table mode ${r[3]} for line ${r}`)
+        }
+        else {
+            termType = r[3] == "OnDemand" ? TermType.OnDemand : TermType.Reserved
+        }
+
+        let mode
+        if (!["Amazon DynamoDB PayPerRequest Throughput", "Provisioned IOPS"].includes(r[14])) {
+            continue // we don't care about rows that are not about on-demand or provisioned-capacity table modes for now
+        }
+        else {
+            mode = r[14] == "Provisioned IOPS" ? TableMode.ProvisionedCapacity : TableMode.OnDemand
+        }
+
+        const description = r[4]
+        const contractLength = r[11] // empty or 1yr or 3yr
+        const unit = r[8] // ReadCapacityUnit-Hrs or WriteCapacityUnit-Hrs or ReadRequestUnits or WriteRequestUnits
+        const pricePerUnit = parseFloat(r[9])
+        const currency = r[10] // USD
+        const region = r[23] as string
+        const storageClass = r[21].startsWith('IA-') ? StorageClass.InfrequentAccess : StorageClass.Standard
+
+        const record = {description, termType, contractLength, unit, pricePerUnit, currency, region, mode, storageClass, row: r}
+        let updated = records.get(region) || []
+        updated.push(record)
+        records.set(region, updated)
+    }
+    return records
+}
+
+
+export async function getCostPerUnit(region: string, op: ReadOrWrite, mode: TableMode, storageClass: StorageClass ) {
+    const prices = (await getPricesByRegion()).get(region)
+    if (!prices) {
+        throw new Error(`Can't get prices for ${region}`)
+    }
+
+    const wantUnitByOpAndMode = {
+        [ReadOrWrite.Read]: {
+            [TableMode.OnDemand]: 'ReadRequestUnits',
+            [TableMode.ProvisionedCapacity]: 'ReadCapacityUnit-Hrs',
+        },
+        [ReadOrWrite.Write]: {
+            [TableMode.OnDemand]: 'WriteRequestUnits',
+            [TableMode.ProvisionedCapacity]: 'WriteCapacityUnit-Hrs',
+        },
+    }
+    const priceRecords: PriceRecord[] = prices
+        .filter(r => r.mode == mode)
+        .filter(r => r.pricePerUnit !== 0)
+        .filter(r => r.contractLength == '')
+        .filter(r => r.unit == wantUnitByOpAndMode[op][mode])
+        .filter(r => r.storageClass == storageClass)
+
+    return priceRecords[0].pricePerUnit
 }
