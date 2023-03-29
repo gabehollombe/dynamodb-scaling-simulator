@@ -1,6 +1,7 @@
 import { fromIni } from "@aws-sdk/credential-providers";
 import { CloudWatchClient, GetMetricDataCommand } from "@aws-sdk/client-cloudwatch";
-import { DynamoDBClient, ListTablesCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ListTablesCommand, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
+import { TableMode, StorageClass } from "./pricing";
 
 type FetchTableMetricsParams = {
     profile: string
@@ -10,23 +11,62 @@ type FetchTableMetricsParams = {
     endTime: Date
 }
 
-export async function getAllTableNames({region, profile}: {region: string, profile: string}) {
+export type TableDetails = {
+    region: string
+    name: string
+    mode: TableMode
+    storageClass: StorageClass
+    provisionedRCUs: number
+    provisionedWCUs: number
+}
+
+export async function getAllTableDetails({region, profile}: {region: string, profile: string}): Promise<TableDetails[]> {
     const client = new DynamoDBClient({ 
         region,
         credentials: fromIni({profile})
     })
-    let tableNames: string[] = []
+
+    let allDetails: TableDetails[] = []
+
     let lastEvaluatedTableName 
     do {
-        const response = await client.send(new ListTablesCommand({ExclusiveStartTableName: lastEvaluatedTableName}))
-        lastEvaluatedTableName = response.LastEvaluatedTableName as any
-        if (response.TableNames) {
-            tableNames = tableNames.concat(response.TableNames)
-        }
+        const listResponse = await client.send(new ListTablesCommand({ExclusiveStartTableName: lastEvaluatedTableName}))
+        lastEvaluatedTableName = listResponse.LastEvaluatedTableName as any
+        if (listResponse.TableNames) {
+            for (let name of listResponse.TableNames) {
+                const detailsResponse = await client.send(new DescribeTableCommand({TableName: name}))
 
+                // console.log(detailsResponse)
+
+                let mode
+                if (detailsResponse.Table?.BillingModeSummary === undefined) {
+                    // BillingModeSummary is empty if the table is really old, so it must be ProvisionedCapacity
+                    mode = TableMode.ProvisionedCapacity
+                } else if (!['PROVISIONED', 'PAY_PER_REQUEST'].includes(detailsResponse.Table?.BillingModeSummary?.BillingMode as string)) { 
+                    throw new Error(`Can't parse table ${name} billing mode: ${detailsResponse.Table?.BillingModeSummary?.BillingMode}`) 
+                }
+                mode = detailsResponse.Table?.BillingModeSummary?.BillingMode == 'PROVISIONED' ? TableMode.ProvisionedCapacity : TableMode.OnDemand
+
+                let storageClass
+                if (detailsResponse.Table?.TableClassSummary == undefined) {
+                    // TableClassSummary is empty if the table is really old, so it must be Standard
+                    storageClass = StorageClass.Standard
+                }
+                else if (!['STANDARD', 'STANDARD_INFREQUENT_ACCESS'].includes(detailsResponse.Table?.TableClassSummary?.TableClass as string)) { 
+                    throw new Error(`Can't parse table ${name} table class: ${detailsResponse.Table?.TableClassSummary?.TableClass}`) 
+                }
+                storageClass = detailsResponse.Table?.TableClassSummary?.TableClass == 'STANDARD' ? StorageClass.Standard : StorageClass.InfrequentAccess
+
+                const provisionedRCUs = detailsResponse.Table?.ProvisionedThroughput?.ReadCapacityUnits as number
+                const provisionedWCUs = detailsResponse.Table?.ProvisionedThroughput?.WriteCapacityUnits as number
+
+                const details = { region, name, mode, storageClass, provisionedRCUs, provisionedWCUs }
+                allDetails.push(details)
+            }
+        }
     } while (lastEvaluatedTableName !== undefined)
 
-    return tableNames
+    return allDetails
 }
 
 

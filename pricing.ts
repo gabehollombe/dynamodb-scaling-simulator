@@ -5,27 +5,27 @@ import { TableCapacityConfig } from './ddb-sim';
 import { Readable } from 'stream';
 import { parse } from 'csv-parse';
 
-enum ReadOrWrite {
+export enum ReadOrWrite {
     Read = 'Read',
     Write = 'Write'
 }
 
-enum TableMode {
+export enum TableMode {
     OnDemand = 'OnDemand',
     ProvisionedCapacity = 'ProvisionedCapacity'
 }
 
-enum TermType {
+export enum TermType {
     Reserved = 'Reserved',
     OnDemand = 'OnDemand'
 }
 
-enum StorageClass {
+export enum StorageClass {
     Standard = 'Standard',
     InfrequentAccess = 'InfrequentAccess'
 }
 
-type PriceRecord = {
+export type PriceRecord = {
     termType: TermType,
     contractLength: string
     unit: string
@@ -169,7 +169,7 @@ async function getPricesByRegion() {
         const pricePerUnit = parseFloat(r[9])
         const currency = r[10] // USD
         const region = r[23] as string
-        const storageClass = r[21].startsWith('IA-') ? StorageClass.InfrequentAccess : StorageClass.Standard
+        const storageClass = r[21].indexOf('IA-') !== -1 ? StorageClass.InfrequentAccess : StorageClass.Standard
 
         const record = {description, termType, contractLength, unit, pricePerUnit, currency, region, mode, storageClass, row: r}
         let updated = records.get(region) || []
