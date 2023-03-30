@@ -4,12 +4,14 @@
   "description": "",
   "source": "index.html",
   "scripts": {
+    "optimize-region-report": "npx ts-node ./scripts/make-optimize-report-for-region.ts",
     "start": "parcel",
     "test": "jest"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-application-auto-scaling": "^3.301.0",
     "@aws-sdk/client-cloudwatch": "^3.292.0",
     "@aws-sdk/client-dynamodb": "^3.300.0",
     "@aws-sdk/credential-providers": "^3.292.0",
