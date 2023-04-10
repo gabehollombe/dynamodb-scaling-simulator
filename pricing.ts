@@ -52,6 +52,11 @@ function groupBy<T>(arr: T[], fn: (item: T) => any) {
     }, {});
 }
 
+function hourKey(timestamp: number | Date): string {
+    const d = dayjs(timestamp)
+    return `${d.year()}|${d.month()}|${d.date()}|${d.hour()}`
+}
+
 export function calculateCost(trace: Trace, pricePerHour: number): number {
     // DynamoDB actually bills by sampling a random minute in the hour and bills for the hour based on the provisioned capacity at that time
     // For the purposes of estimating cost here, we will be conservative and use the max provisioned value for the hour to determine the cost.
@@ -61,12 +66,24 @@ export function calculateCost(trace: Trace, pricePerHour: number): number {
     const justTheYsCollectedIntoArrays = Object.values(byHour).map(xys => xys.map(xy => parseFloat(xy[1] as string)))
     const hourMaxes = justTheYsCollectedIntoArrays.map((ys) => Math.max(...ys))
     return sum(hourMaxes) * pricePerHour / hourMaxes.length * 24
+}
 
-    // For archival purposes...
-    // This will return the sum of the hourly rate billed one minute at a time:
-    // return trace.y.reduce((sum, consumedThisMinute) => {
-    //     return sum + consumedThisMinute * (pricePerHour / 60.0)
-    // }, 0)
+export function calculateProvisionedCostFromCloudWatchMetrics(records: SimTimestepInput[], pricePerHour: number): number {
+    // DynamoDB actually bills by sampling a random minute in the hour and bills for the hour based on the provisioned capacity at that time
+    // For the purposes of estimating cost here, we will be conservative and use the max provisioned value for the hour to determine the cost.
+
+    const byHour = groupBy(records, (r => hourKey(r.timestamp)))
+    const consumptionSumsInArrays = Object.values(byHour).map(recs => recs.map(r => r.consumed + r.throttled))
+    const hourMaxes = consumptionSumsInArrays.map((consumeds) => Math.max(...consumeds))
+    return sum(hourMaxes) * pricePerHour / hourMaxes.length * 24
+}
+
+export function calculateOnDemandCostFromCloudwatchMetrics(records: SimTimestepInput[], pricePerUnit: number) {
+    // On-demand doesn't bill for throttles, so just sum consumed * pricePerUnit
+    const byHour = groupBy(records, (r => hourKey(r.timestamp)))
+    const consumptionsInArrays = Object.values(byHour).map(recs => recs.map(r => r.consumed))
+    const hourSums = consumptionsInArrays.map((consumeds) => sum(consumeds))
+    return sum(hourSums) * pricePerUnit / hourSums.length * 24
 }
 
 function makeObjectiveFn(scalingConfig: TableCapacityConfig, records: SimTimestepInput[], pricePerHour: number) {
