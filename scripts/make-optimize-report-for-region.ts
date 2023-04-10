@@ -1,6 +1,6 @@
 import { makeRecordsForSimulator } from "../csv-ingestion";
 import { getTraces } from "../plotting";
-import { ReadOrWrite, TableMode, StorageClass, getCostPerUnit, optimize } from "../pricing";
+import { ReadOrWrite, TableMode, StorageClass, getCostPerUnit, optimize, calculateOnDemandCostFromCloudwatchMetrics, calculateProvisionedCostFromCloudWatchMetrics } from "../pricing";
 import { fetchTableMetrics, getAllTableDetails } from "../table-consumption-fetcher";
 
 const args = process.argv.slice(2)
@@ -13,9 +13,12 @@ const startTime = new Date(Date.parse(startTimeStr))
 const endTime = new Date(Date.parse(endTimeStr))
 
 async function main(){
+    process.stderr.write(`Fetching all table details for ${region} ${profile}\n`)
     const allTableDetails = await getAllTableDetails({region, profile})
 
+    console.log("region,tableName,tableMode,readOrWrite,bestMin,bestMax,bestTarget,bestPrice,currentAvgDailyCost")
     for (let tableDetails of allTableDetails) {
+        process.stderr.write(`Processing table: ${tableDetails.name}\n`)
         const tableName = tableDetails.name
         const stats = await fetchTableMetrics({region, profile, tableName, startTime, endTime})
 
@@ -23,32 +26,32 @@ async function main(){
         const writeUnitCost = await getCostPerUnit(region, ReadOrWrite.Read, tableDetails.mode, tableDetails.storageClass)
 
         const { readRecords, writeRecords } = makeRecordsForSimulator(stats)
+
         // TODO: refactor --Only the scaling delay matters below (other values are overwritten in the optimizer.) 
         const config = {min: 0, max: 0, target: 0.5, scaling_delay_in_seconds: 2*60}
 
-        // --- waiting to use this until we get the scaling config for the table (if its already in pro cap mode)
-        // Get traces
-        // const scaling_delay_in_seconds = 120
-        // const readsConfig = { min: tableDetails. , max: target:, scaling_delay_in_seconds }
-        // ----------
-
         // If table is in OnDemand, try to project its avg daily cost
-        let onDemandReadCost = -1 // TODO should these be 0?
-        let onDemandWriteCost = -1
+        let readCost: number
+        let writeCost: number
         if (tableDetails.mode == TableMode.OnDemand) {
-            onDemandReadCost = readRecords.reduce(((sum, r) => sum + r.consumed * readUnitCost), 0)
-            onDemandWriteCost = writeRecords.reduce(((sum, r) => sum + r.consumed * readUnitCost), 0)
+            readCost = calculateOnDemandCostFromCloudwatchMetrics(readRecords, readUnitCost)
+            writeCost = calculateOnDemandCostFromCloudwatchMetrics(writeRecords, writeUnitCost)
+        } else {
+            readCost = calculateProvisionedCostFromCloudWatchMetrics(readRecords, readUnitCost)
+            writeCost = calculateProvisionedCostFromCloudWatchMetrics(writeRecords, writeUnitCost)
         }
 
-        const writeLine = (mode: string, o: any, onDemandCost: number) => console.log([region, tableName, mode, o.bestMin, o.bestMax, o.bestTarget, o.bestPrice, onDemandCost].join(','))
+        const writeLine = (mode: string, readWrite: string, o: any, currentAvgDailyCost: number) => console.log([region, tableName, mode, readWrite, o.bestMin, o.bestMax, o.bestTarget, o.bestPrice, currentAvgDailyCost].join(','))
 
         let o
         o = optimize(config, readRecords, readUnitCost)
-        writeLine('read', o, onDemandReadCost)
+        writeLine(tableDetails.mode, 'read', o, readCost)
 
         o = optimize(config, writeRecords, writeUnitCost)
-        writeLine('write', o, onDemandWriteCost)
+        writeLine(tableDetails.mode, 'write', o, writeCost)
+        process.stderr.write(`Done with table: ${tableDetails.name}\n`)
     }
+    process.exit(0)
 }
 
 main()

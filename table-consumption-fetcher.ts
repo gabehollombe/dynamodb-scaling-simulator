@@ -1,7 +1,7 @@
 import { fromIni } from "@aws-sdk/credential-providers";
 import { CloudWatchClient, GetMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { DynamoDBClient, ListTablesCommand, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
-import { ApplicationAutoScalingClient, DescribeScalableTargetsCommand, DescribeScalingPoliciesCommand } from "@aws-sdk/client-application-auto-scaling";
+import { ApplicationAutoScalingClient, DescribeScalableTargetsCommand, DescribeScalingPoliciesCommand, ScalingPolicy } from "@aws-sdk/client-application-auto-scaling";
 import { TableMode, StorageClass } from "./pricing";
 
 type FetchTableMetricsParams = {
@@ -19,19 +19,64 @@ export type TableDetails = {
     storageClass: StorageClass
     provisionedRCUs: number
     provisionedWCUs: number
+    scalingPolicies: { read: ScalingPolicy | undefined, write: ScalingPolicy | undefined }
 }
 
+
 async function getTableDetails(ddbClient: DynamoDBClient, scalingClient: ApplicationAutoScalingClient , name: string): Promise<TableDetails> {
-    const detailsResponse = await ddbClient.send(new DescribeTableCommand({ TableName: name }))
+    let retryBackoff = 100
+
+    let detailsResponse
+    while (detailsResponse == undefined) {
+        try {
+            detailsResponse = await ddbClient.send(new DescribeTableCommand({ TableName: name }))
+        }
+        catch (error: any) {
+            if (error.__type == 'ThrottlingException') {
+                process.stderr.write(`Throttled. Sleeping ${retryBackoff} \n`)
+                await sleep(retryBackoff)
+                retryBackoff *= 2
+            }
+            else {
+                throw error
+            }
+        }
+    }
+    retryBackoff = 100
 
     // console.log(detailsResponse)
     
-    // // Get scaling info for the table, if it exists
-    // const scalingResponse = await scalingClient.send(new DescribeScalingPoliciesCommand({ServiceNamespace: 'dynamodb', ResourceId: `table/${name}`}))
-    // let scalingConfigs
-    // if (scalingResponse.ScalingPolicies && scalingResponse.ScalingPolicies.length > 0) {
-    //     //TODO try to find the read and write policies 
-    // }
+    // Get scaling info for the table, if it exists
+    // 1. Get the ScalingPolicies for this table (for target utilization values)
+    let scalingResponse
+    while (scalingResponse == undefined) {
+        try {
+            scalingResponse = await scalingClient.send(new DescribeScalingPoliciesCommand({ServiceNamespace: 'dynamodb', ResourceId: `table/${name}`}))
+        }
+        catch (error: any) {
+            if (error.__type == 'ThrottlingException') {
+                process.stderr.write(`Throttled. Sleeping ${retryBackoff} \n`)
+                await sleep(retryBackoff)
+                retryBackoff *= 2
+            }
+            else {
+                throw error
+            }
+        }
+    }
+    retryBackoff = 100
+    
+
+    let scalingPolicies: {read: ScalingPolicy | undefined, write: ScalingPolicy | undefined} = {
+        read: undefined,
+        write: undefined
+    }
+    if (scalingResponse.ScalingPolicies && scalingResponse.ScalingPolicies.length > 0) {
+        scalingPolicies.read = scalingResponse.ScalingPolicies.find(p => p.ScalableDimension == "dynamodb:table:ReadCapacityUnits")
+        scalingPolicies.write = scalingResponse.ScalingPolicies.find(p => p.ScalableDimension == "dynamodb:table:WriteCapacityUnits")
+    }
+    // 2. Get the ScalableTargets for this table (for min/max values)
+    // TODO...^ do we need this?
 
     let mode
     if (detailsResponse.Table?.BillingModeSummary === undefined) {
@@ -56,9 +101,13 @@ async function getTableDetails(ddbClient: DynamoDBClient, scalingClient: Applica
     const provisionedWCUs = detailsResponse.Table?.ProvisionedThroughput?.WriteCapacityUnits as number
     const region = ddbClient.config.region as string
 
-    const details = { region, name, mode, storageClass, provisionedRCUs, provisionedWCUs }
+    const details = { region, name, mode, storageClass, provisionedRCUs, provisionedWCUs, scalingPolicies }
     return details
 }
+
+function sleep(time: number) {
+    return new Promise(resolve => setTimeout(resolve, time));
+  } 
 
 export async function getAllTableDetails({ region, profile }: { region: string, profile: string }): Promise<TableDetails[]> {
     const ddbClient = new DynamoDBClient({
@@ -73,18 +122,22 @@ export async function getAllTableDetails({ region, profile }: { region: string, 
     let allDetails: Promise<TableDetails>[] = []
 
     let lastEvaluatedTableName
-    const DEBUG_MAX_RECORDS = 3
+    const DEBUG_MAX_RECORDS = -1
     let record_count = 0
     do {
+        process.stderr.write(`Fetching batch of table details from DynamoDB. Start Table Name: ${lastEvaluatedTableName}\n`)
         const listResponse = await ddbClient.send(new ListTablesCommand({ ExclusiveStartTableName: lastEvaluatedTableName }))
         lastEvaluatedTableName = listResponse.LastEvaluatedTableName as any
         if (listResponse.TableNames) {
             for (let name of listResponse.TableNames) {
-                if (record_count > DEBUG_MAX_RECORDS) { continue }
+                if (DEBUG_MAX_RECORDS > 0 && record_count > DEBUG_MAX_RECORDS) { continue }
+                process.stderr.write(`Fetching table details from DynamoDB. ${name}\n`)
                 allDetails.push(getTableDetails(ddbClient, scalingClient, name))
                 record_count += 1
+                await sleep(250)
             }
         }
+        // await sleep(1000)
     } while (lastEvaluatedTableName !== undefined)
 
     return Promise.all(allDetails)

@@ -23,12 +23,12 @@ cd "$(dirname "$0")"
 pushd ..
 
 cat << EOF | npx ts-node 
-import { getAllTableNames } from './table-consumption-fetcher'
+import { getAllTableDetails } from './table-consumption-fetcher'
 
 (async()=>{
-const names = await getAllTableNames({region: '$region', profile: '$profile'})
-for (let n of names) {
-  console.log(n)
+const details = await getAllTableDetails({region: '$region', profile: '$profile'})
+for (let d of details) {
+  console.log(d)
 }
 })()
 EOF
