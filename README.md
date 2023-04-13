@@ -1,12 +1,17 @@
 
 --------
-# This is Alpha software. It probably has bugs. Use at your own risk.
+## ⚠️ This is Alpha software. ⚠️
+
+## It probably has bugs, but the info it provides is probably still helpful even with bugs.
+
 --------
 
 # DynamoDB Scaling Simulator
 
 ## What's this?
-This repo contains a tool to help you simulate how a provisioned-capacity DynamoDB table will perform (will it throttle requests or not?) under different auto-scaling configurations.
+This repo contains a tool to help you simulate how a provisioned-capacity DynamoDB table will perform (will it throttle requests or not?) under different auto-scaling configurations. 
+
+It will also try to calculate the best config for you that results in the lowest cost and no throttles.
 
 ## How do I use it?
 1. Clone this repo
@@ -19,9 +24,9 @@ This repo contains a tool to help you simulate how a provisioned-capacity Dynamo
 
 1. Look for the URL that Parcel is hosting the build at and open it in your browser. Defaults to http://localhost:1234
 
-1. Follow the instructions in the GUI. Use the first form to get data from CloudWatch, then the second form to configure scaling simulator settings and generate a graph.
+1. Follow the instructions in the GUI. Use the first form to get data from CloudWatch, then the second form to configure scaling simulator settings and generate graphs and recommented optimal scaling configs for reads and writes.
 
-1. Look at the graph for any simulated throttled events. This is probably what you want to avoid.
+1. If you're interested in trying iterations of your own guessed configurations, look at the graph for any simulated throttled events. This is probably what you want to avoid.
 
 ## How does it work?
 This tool...
@@ -29,38 +34,42 @@ This tool...
 
 2. Instantiates a new simulated table with a given auto-scaling config (min capacity, max capacity, target utilization).
 
-3. Calculates each minute's total read/write demand for the table (summing Consumed + Throttled metrics for reads and writes, respectively)
+3. Calculates the average per-second demand based on each minute's total read/write demand for the table (summing Consumed + Throttled metrics for reads and writes, respectively)
 
-4. Feeds each minute's total demand into the simulated table
+4. Feeds each minute's average per-second demand into the simulated table
 
 5. Records the results of serving that minute of demand (amount of capacity successfully consumed, amount of requested capacity that was throttled)
 
-6. Graphs these metrics and calculate avg daily cost for your scaling config
+6. Graphs these metrics and calculates avg daily cost for your scaling config
 
 7. Also attempts to 'solve' for an optimized scaling config that results in no throttles and has the lowest price.
 
 
-## Caveats
+## Important Caveats. This tool...
 - Does not think about hot partitions as a reason to throttle. Only considers total capacity avaialble vs requested.
 
-- We get data from CloudWatch at the minute-level and we simulate by calculating the average demand per second for that minute (total demand for the minute / 60). This means that if there was a 'micro burst' of a few seconds of super high demand on the table and the rest of the minute was relatively quiet, we'll see a low average here. In reality, some of that 'micro burst' should be throttled in the simulator but we can't simulate at the second level of granularity because we lack the data. So just be aware that **while this simulation still pretty helpful, it's not anything close to a promise of what actually happened**.
+- Gets CloudWatch at the minute-level and we simulate by calculating the average demand per second for that minute (total demand for the minute / 60). This means that if there was a 'micro burst' of a few seconds of super high demand on the table and the rest of the minute was relatively quiet, we'll see a low average here. In reality, some of that 'micro burst' should be throttled in the simulator but we can't simulate at the second level of granularity because we lack the data. 
+
+    So just be aware that **while this simulation still pretty helpful, it's not anything close to a promise of what actually happened**.
 
 - Correctly simulates scaling up (when last 2 minutes of usage are higher than provisioned capacity) and down (when last 15 mintues are all at a utilization that is at least 20% lower than the target utilization), according to [this knowledge base article](https://aws.amazon.com/premiumsupport/knowledge-center/dynamodb-auto-scaling/). However, it requires you to configure how long of a delay you want to simulate between when the table _wants_ to scale and when that scaling event actually occurs.
   
 - Doesn't know DDB's exact scaling algorithm, so it does something simple and just sets the new capacity based on the most recently requested utilization and the target utilization.  
         
-    I _think_ that DDB's scaling algorithm will scale up more aggressively if it also sees recent throttles?
+    DDB's scaling algorithm _probably_ will scale up more aggressively if it also sees recent throttles?
 
-- Currently it only simulates the default scaledown limits: 4 in 1st hour, 1 each additional hour)
+- Currently only simulates the default scaledown limits: 4 in 1st hour, 1 each additional hour)
 
 ## TODOs
 - [ ] Try calculating scaledown targets by looking at the last 60 minute average rather than the most recent requested amount (this may be more like what DDB actually does?)
 
 - [ ] Show warning if user tries to use < 20% or > 90% target utilization (DDB only supports values inside this range)
 
-## Ideas
+- [ ] Show Standard and Infrequent Access costs (don't just assume Standard)
 
-- Plug into the AWS Pricing API so we can know accurate prices based on table's region
+- [ ] Integrate pricing API instead of asking users to put the prices in
+
+## Ideas
 
 - Show a side-by-side view in the GUI between actual vs simulated
 
