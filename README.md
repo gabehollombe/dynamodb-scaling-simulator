@@ -1,10 +1,7 @@
 
---------
 ## ⚠️ This is Alpha software. ⚠️
 
 ## It probably has bugs, but the info it provides is probably still helpful even with bugs.
-
---------
 
 # DynamoDB Scaling Simulator
 
