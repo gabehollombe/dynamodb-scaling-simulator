@@ -122,7 +122,7 @@ export function optimize(scalingConfig: TableCapacityConfig, records: SimTimeste
     const summedDemands = records.map((_, i) => { return Math.round((records[i].consumed + records[i].throttled) / 60)})
 
     // Figure out sane values for min and max capacity config
-    const minBottom = 0
+    const minBottom = 1
     const minTop = Math.max(...summedDemands)
     const maxBottom = Math.max(...summedDemands) * 0.5
     const maxTop = 3 * Math.max(...summedDemands)
@@ -133,7 +133,7 @@ export function optimize(scalingConfig: TableCapacityConfig, records: SimTimeste
     const costDims = [ 
         optimjs.Integer(minBottom, minTop), // min capacity
         optimjs.Integer(maxBottom, maxTop), // max capacity
-        optimjs.Integer(30, 90), // target utilization
+        optimjs.Integer(20, 90), // target utilization
     ] 
     const optimizationSteps = 512
     const dummy_result = optimjs.rs_minimize(costObjFn, costDims, optimizationSteps)

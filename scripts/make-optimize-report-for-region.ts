@@ -1,23 +1,23 @@
 import { makeRecordsForSimulator } from "../csv-ingestion";
 import { getTraces } from "../plotting";
 import { ReadOrWrite, TableMode, StorageClass, getCostPerUnit, optimize, calculateOnDemandCostFromCloudwatchMetrics, calculateProvisionedCostFromCloudWatchMetrics } from "../pricing";
-import { fetchTableMetrics, getAllTableDetails } from "../table-consumption-fetcher";
+import { fetchTableMetrics, getAllTableDetails, TableDetails } from "../table-consumption-fetcher";
+import { readFileSync } from 'fs'
 
 const args = process.argv.slice(2)
-if (args.length !== 4) {
-    console.log('Must pass: profile region start end')
+if (args.length !== 5) {
+    console.log('Must pass: profile region start end table-details-dump.json')
     process.exit(1)
 }
-const [profile, region, startTimeStr, endTimeStr] = args
+const [profile, region, startTimeStr, endTimeStr, tableDetailsDumpPath] = args
 const startTime = new Date(Date.parse(startTimeStr))
 const endTime = new Date(Date.parse(endTimeStr))
+const allTableDetails: TableDetails[] = JSON.parse(readFileSync(tableDetailsDumpPath, 'utf8'))
 
 async function main(){
-    process.stderr.write(`Fetching all table details for ${region} ${profile}\n`)
-    const allTableDetails = await getAllTableDetails({region, profile})
-
     console.log("region,tableName,tableMode,readOrWrite,bestMin,bestMax,bestTarget,bestPrice,currentAvgDailyCost")
-    for (let tableDetails of allTableDetails) {
+    // For now, only process the on-demand tables
+    for (let tableDetails of allTableDetails.filter(t => t.mode == TableMode.OnDemand)) {
         process.stderr.write(`Processing table: ${tableDetails.name}\n`)
         const tableName = tableDetails.name
         const stats = await fetchTableMetrics({region, profile, tableName, startTime, endTime})
