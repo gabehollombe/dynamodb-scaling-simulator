@@ -1,12 +1,14 @@
-import { fromIni } from "@aws-sdk/credential-providers";
+import { getCredentialsFromAssumingRole } from "./aws-credentials";
+import { fromIni, fromTemporaryCredentials } from "@aws-sdk/credential-providers";
 import { CloudWatchClient, GetMetricDataCommand } from "@aws-sdk/client-cloudwatch";
-import { DynamoDBClient, ListTablesCommand, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ListTablesCommand, DescribeTableCommand, ExportConflictException } from "@aws-sdk/client-dynamodb";
 import { ApplicationAutoScalingClient, DescribeScalableTargetsCommand, DescribeScalingPoliciesCommand, ScalingPolicy } from "@aws-sdk/client-application-auto-scaling";
 import { TableMode, StorageClass } from "./pricing";
 
 type FetchTableMetricsParams = {
-    profile: string
     region: string
+    profile: string
+    roleArn: string
     tableName: string
     startTime: Date
     endTime: Date
@@ -109,14 +111,20 @@ function sleep(time: number) {
     return new Promise(resolve => setTimeout(resolve, time));
   } 
 
-export async function getAllTableDetails({ region, profile }: { region: string, profile: string }): Promise<TableDetails[]> {
+export async function getAllTableDetails({ region, profile, roleArn }: { region: string, profile: string, roleArn: string }): Promise<TableDetails[]> {
+    const credentials = await getCredentialsFromAssumingRole(region, profile, roleArn)
+    if (credentials === undefined) {
+        throw new Error("Couldn't get credentials")
+    }
+
     const ddbClient = new DynamoDBClient({
         region,
-        credentials: fromIni({ profile })
+        credentials,
     })
+
     const scalingClient = new ApplicationAutoScalingClient({
         region,
-        credentials: fromIni({ profile })
+        credentials,
     })
 
     let allDetails: Promise<TableDetails>[] = []
@@ -145,9 +153,14 @@ export async function getAllTableDetails({ region, profile }: { region: string, 
 
 
 export async function fetchTableMetrics(params: FetchTableMetricsParams): Promise<{ timestamp: Date, consumedRead: number, consumedWrite: number, throttledReads: number, throttledWrites: number }[]> {
+    const credentials = await getCredentialsFromAssumingRole(params.region, params.profile, params.roleArn)
+    if (credentials === undefined) {
+        throw new Error("Couldn't get credentials")
+    }
+
     const cloudwatch = new CloudWatchClient({
         region: params.region,
-        credentials: fromIni({ profile: params.profile })
+        credentials,
     })
 
     const namespace = "AWS/DynamoDB";

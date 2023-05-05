@@ -1,7 +1,7 @@
 import { getCloudWatchUrl } from './cloudwatch-opener'
 import { getTraces, Trace, SimTimestepInput } from './plotting'
 import { newPlot } from 'plotly.js-dist'
-import { calculateCost, optimize } from './pricing'
+import { calculateCost, getCostPerUnit, optimize, ReadOrWrite, StorageClass, TableMode } from './pricing'
 import { arrayToMetricsRecords, makeRecordsForSimulator } from './csv-ingestion'
 
 import dayjs from 'dayjs'
@@ -55,7 +55,7 @@ function addResultRows({tableId, description, min, max, target, cost}) {
     }
 }
 
-function onCsvFileReady(formData: FormData, e) {
+async function onCsvFileReady(formData: FormData, e) {
     const text = e.target!.result;
     const data = csvToArray(text as string, ",", 5)
     const metricsRecords = arrayToMetricsRecords(data)
@@ -68,6 +68,12 @@ function onCsvFileReady(formData: FormData, e) {
 
     const rcuPricing: number = parseFloat(formData.get('rcu_pricing'))
     const wcuPricing: number = parseFloat(formData.get('wcu_pricing'))
+
+    // const rcuPricing: number = await getCostPerUnit('ap-southeast-1', ReadOrWrite.Read, TableMode.ProvisionedCapacity, StorageClass.Standard)
+    // const wcuPricing: number = await getCostPerUnit('ap-southeast-1', ReadOrWrite.Write, TableMode.ProvisionedCapacity, StorageClass.Standard)
+    // console.log(rcuPricing)
+    // console.log(wcuPricing)
+
     const rcuCost = calculateCost(readTraces.provisionedCapacityTrace, rcuPricing)
     const wcuCost = calculateCost(writeTraces.provisionedCapacityTrace, wcuPricing)
 
@@ -179,7 +185,7 @@ async function onCsvFormSubmit(e) {
     const file = e.currentTarget.querySelector('input[type="file"').files[0]
     const formData = new FormData(e.currentTarget)
     const reader = new FileReader()
-    reader.onload = onCsvFileReady.bind(this, formData)
+    reader.onload = await onCsvFileReady.bind(this, formData)
     reader.readAsText(file)
 }
 

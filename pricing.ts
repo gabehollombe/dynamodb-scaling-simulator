@@ -123,9 +123,9 @@ export function optimize(scalingConfig: TableCapacityConfig, records: SimTimeste
 
     // Figure out sane values for min and max capacity config
     const minBottom = 1
-    const minTop = Math.max(...summedDemands)
-    const maxBottom = Math.max(...summedDemands) * 0.5
-    const maxTop = 3 * Math.max(...summedDemands)
+    const minTop = Math.max(1, Math.max(...summedDemands))
+    const maxBottom = Math.min(1, Math.max(...summedDemands) * 0.5)
+    const maxTop = Math.max(1, 3 * Math.max(...summedDemands))
 
 
     // TODO: consider droping min/max cap config from the optimization search. We can use our own brains for this value right?
