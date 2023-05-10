@@ -135,7 +135,7 @@ export function optimize(scalingConfig: TableCapacityConfig, records: SimTimeste
         optimjs.Integer(maxBottom, maxTop), // max capacity
         optimjs.Integer(20, 90), // target utilization
     ] 
-    const optimizationSteps = 512
+    const optimizationSteps = 256
     const dummy_result = optimjs.rs_minimize(costObjFn, costDims, optimizationSteps)
     const [bestMin, bestMax, bestTarget] = dummy_result.best_x
     const bestPrice = dummy_result.best_y
