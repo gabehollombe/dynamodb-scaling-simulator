@@ -110,10 +110,10 @@ async function onCsvFileReady(formData: FormData, e) {
 
                 addResultRows({
                     tableId: 'readsResults', 
-                    description: 'Optimized config (from my auto tuning)', 
+                    description: 'Optimized config (auto tuning for no throttles)', 
                     min: bestMin,
                     max: bestMax,
-                    target: bestTarget,
+                    target: bestTarget / 100,
                     cost: bestPrice
                 })
 
@@ -123,10 +123,10 @@ async function onCsvFileReady(formData: FormData, e) {
 
                 addResultRows({
                     tableId: 'writesResults', 
-                    description: 'Optimized config (from my auto tuning)', 
+                    description: 'Optimized config (auto tuning for no throttles)', 
                     min: bestMin,
                     max: bestMax,
-                    target: bestTarget,
+                    target: bestTarget / 100,
                     cost: bestPrice
                 })
             }
