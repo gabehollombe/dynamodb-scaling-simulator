@@ -1,7 +1,7 @@
 
-## ⚠️ This is Alpha software. ⚠️
+## This is Beta software.
 
-## It probably has bugs, but the info it provides is probably still helpful even with bugs.
+## The tool might have bugs, but the info it provides has proven helpful in its current state, even if it may not be the best it can be.
 
 # DynamoDB Scaling Simulator
 
